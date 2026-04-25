@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS tomninger (
   oprettet        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- external_ref tilføjes via ALTER for at virke på eksisterende databaser.
+ALTER TABLE tomninger ADD COLUMN IF NOT EXISTS external_ref TEXT;
+
+-- Idempotens på webhook-import: samme provider+event ID må kun give én tømning.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tomninger_external_ref ON tomninger(external_ref) WHERE external_ref IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_tomninger_beholder ON tomninger(beholder_id);
 CREATE INDEX IF NOT EXISTS idx_tomninger_dato ON tomninger(tomning_dato);
 CREATE INDEX IF NOT EXISTS idx_tomninger_faktureret ON tomninger(faktureret);

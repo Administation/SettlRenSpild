@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { query, one, pool } = require('../db');
+const { parsePaging, paginatedQuery } = require('../lib/pagination');
 
-// Generér kort kundenummer (KU-xxxxxx).
 function genKundeId() {
   return 'KU-' + Math.random().toString(36).slice(2, 8).toUpperCase();
 }
@@ -10,13 +10,36 @@ function genKundeId() {
 router.get('/', async (req, res, next) => {
   try {
     const { q, status, type } = req.query;
+    const { limit, offset } = parsePaging(req.query, { limit: 50 });
     const where = [];
     const params = [];
-    if (q) { params.push(`%${q}%`); where.push(`(navn ILIKE $${params.length} OR id ILIKE $${params.length} OR cvr ILIKE $${params.length} OR cpr ILIKE $${params.length})`); }
+
+    if (q) {
+      // Trigram-søgning på navn/email + præfiks-match på id/cvr/cpr.
+      // pg_trgm gør %foo%-søgning hurtig på store tabeller.
+      params.push(q);
+      params.push(`${q.toLowerCase()}%`);
+      where.push(`(
+        navn  ILIKE '%' || $${params.length - 1} || '%'
+        OR email ILIKE '%' || $${params.length - 1} || '%'
+        OR LOWER(id)  LIKE $${params.length}
+        OR cvr LIKE $${params.length}
+        OR cpr LIKE $${params.length}
+      )`);
+    }
     if (status) { params.push(status); where.push(`status = $${params.length}`); }
     if (type)   { params.push(type);   where.push(`type   = $${params.length}`); }
-    const sql = `SELECT * FROM kunder ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY oprettet DESC LIMIT 200`;
-    res.json(await query(sql, params));
+
+    const result = await paginatedQuery(pool, {
+      selectSql: '*',
+      fromSql: 'kunder',
+      whereSql: where.join(' AND '),
+      params,
+      orderBy: q ? `similarity(navn, $1) DESC, oprettet DESC` : 'oprettet DESC',
+      limit,
+      offset,
+    });
+    res.json(result);
   } catch (e) { next(e); }
 });
 

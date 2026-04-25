@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { query, one, pool } = require('../db');
+const { parsePaging, paginatedQuery } = require('../lib/pagination');
+const { buildInvoiceXml } = require('../lib/oioubl');
 
 function genFakturaId() {
   return 'FA-' + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -12,19 +14,35 @@ function dkk(v) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { kunde_id, status, service_type } = req.query;
+    const { kunde_id, status, service_type, q } = req.query;
+    const { limit, offset } = parsePaging(req.query, { limit: 50 });
     const where = [];
     const params = [];
     if (kunde_id)     { params.push(kunde_id);     where.push(`f.kunde_id     = $${params.length}`); }
-    if (status)       { params.push(status);       where.push(`f.status       = $${params.length}`); }
     if (service_type) { params.push(service_type); where.push(`f.service_type = $${params.length}`); }
-    const sql = `
-      SELECT f.*, k.navn AS kunde_navn FROM fakturaer f
-      JOIN kunder k ON k.id = f.kunde_id
-      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-      ORDER BY f.fakturadato DESC LIMIT 200
-    `;
-    res.json(await query(sql, params));
+    if (status) {
+      if (status === 'restance') {
+        where.push(`f.status IN ('sendt','forfalden','rykker','inddrivelse') AND f.forfaldsdato < CURRENT_DATE`);
+      } else {
+        const list = status.split(',').map(s => s.trim()).filter(Boolean);
+        params.push(list);
+        where.push(`f.status = ANY($${params.length}::text[])`);
+      }
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      where.push(`(k.navn ILIKE $${params.length} OR f.id ILIKE $${params.length} OR CAST(f.fakturanr AS TEXT) ILIKE $${params.length})`);
+    }
+    const result = await paginatedQuery(pool, {
+      selectSql: 'f.*, k.navn AS kunde_navn',
+      fromSql: 'fakturaer f JOIN kunder k ON k.id = f.kunde_id',
+      whereSql: where.join(' AND '),
+      params,
+      orderBy: 'f.fakturadato DESC',
+      limit,
+      offset,
+    });
+    res.json(result);
   } catch (e) { next(e); }
 });
 
@@ -262,6 +280,67 @@ router.post('/:id/send', async (req, res, next) => {
       [req.params.id, JSON.stringify(mockResponse)]
     );
     res.json({ ...await one(`SELECT * FROM fakturaer WHERE id = $1`, [req.params.id]), mock: mockResponse });
+  } catch (e) { next(e); }
+});
+
+// OIOUBL 2.02 XML — bruges af Nemhandel/AccessPoint til erhvervsfakturering.
+router.get('/:id/oioubl', async (req, res, next) => {
+  try {
+    const f = await one(`
+      SELECT f.*, k.navn AS kunde_navn, k.cvr, k.ean, k.email AS kunde_email, k.telefon AS kunde_telefon,
+             e.vejnavn, e.husnr, e.postnr, e.by,
+             ko.navn AS kommune_navn, ko.cvr AS kommune_cvr, ko.ean AS kommune_ean,
+             ko.email AS kommune_email, ko.telefon AS kommune_telefon
+      FROM fakturaer f
+      JOIN kunder k ON k.id = f.kunde_id
+      LEFT JOIN ejendomme e ON e.id = f.ejendom_id
+      LEFT JOIN kommuner ko ON ko.id = f.kommune_id
+      WHERE f.id = $1
+    `, [req.params.id]);
+    if (!f) return res.status(404).json({ error: 'Faktura ikke fundet' });
+    const linjer = await query(`SELECT * FROM fakturalinjer WHERE faktura_id = $1 ORDER BY id`, [req.params.id]);
+
+    const xml = buildInvoiceXml({
+      invoice: {
+        id: f.id,
+        fakturanr: f.fakturanr,
+        fakturadato: f.fakturadato,
+        forfaldsdato: f.forfaldsdato,
+        periode_fra: f.periode_fra,
+        periode_til: f.periode_til,
+        valuta: 'DKK',
+        isCreditNote: f.status === 'krediteret',
+      },
+      supplier: {
+        navn: f.kommune_navn || 'Kommune',
+        cvr: f.kommune_cvr,
+        ean: f.kommune_ean,
+        email: f.kommune_email,
+        telefon: f.kommune_telefon,
+        adresse: { vej: 'Kommunens adresse', postnr: '', by: f.kommune_navn },
+      },
+      customer: {
+        navn: f.kunde_navn,
+        cvr: f.cvr,
+        ean: f.ean,
+        email: f.kunde_email,
+        telefon: f.kunde_telefon,
+        adresse: { vej: f.vejnavn, husnr: f.husnr, postnr: f.postnr, by: f.by },
+      },
+      linjer: linjer.map(l => ({
+        beskrivelse: l.beskrivelse,
+        antal: l.antal,
+        enhed: l.enhed,
+        enhedspris: l.enhedspris,
+        belob_excl: l.belob_excl,
+        moms_pct: l.moms_pct,
+      })),
+      total: { belob_excl: f.belob_excl, moms: f.moms, belob_incl: f.belob_incl },
+    });
+
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Content-Disposition', `attachment; filename="oioubl-${f.fakturanr || f.id}.xml"`);
+    res.send(xml);
   } catch (e) { next(e); }
 });
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, one, pool } = require('../db');
+const { parsePaging, paginatedQuery } = require('../lib/pagination');
 
 function genSagId() {
   return 'SAG-' + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -8,19 +9,91 @@ function genSagId() {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { domain, status, kunde_id } = req.query;
+    const { domain, status, kunde_id, prioritet, kategori, ansvarlig, q, sla } = req.query;
+    const { limit, offset } = parsePaging(req.query, { limit: 50 });
     const where = [];
     const params = [];
-    if (domain)   { params.push(domain);   where.push(`s.domain   = $${params.length}`); }
-    if (status)   { params.push(status);   where.push(`s.status   = $${params.length}`); }
-    if (kunde_id) { params.push(kunde_id); where.push(`s.kunde_id = $${params.length}`); }
-    const sql = `
-      SELECT s.*, k.navn AS kunde_navn FROM sager s
-      LEFT JOIN kunder k ON k.id = s.kunde_id
-      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-      ORDER BY s.oprettet DESC LIMIT 200
-    `;
-    res.json(await query(sql, params));
+    if (domain)    { params.push(domain);    where.push(`s.domain    = $${params.length}`); }
+    if (kunde_id)  { params.push(kunde_id);  where.push(`s.kunde_id  = $${params.length}`); }
+    if (prioritet) { params.push(prioritet); where.push(`s.prioritet = $${params.length}`); }
+    if (kategori)  { params.push(kategori);  where.push(`s.kategori  = $${params.length}`); }
+    if (ansvarlig) { params.push(ansvarlig); where.push(`s.ansvarlig = $${params.length}`); }
+
+    // Status accepterer kommasepareret liste, eller særværdien 'aabne' (alt undtagen lukket).
+    if (status) {
+      if (status === 'aabne') {
+        where.push(`s.status <> 'lukket'`);
+      } else {
+        const list = status.split(',').map(s => s.trim()).filter(Boolean);
+        params.push(list);
+        where.push(`s.status = ANY($${params.length}::text[])`);
+      }
+    }
+
+    if (q) {
+      params.push(`%${q}%`);
+      where.push(`(s.titel ILIKE $${params.length} OR s.beskrivelse ILIKE $${params.length} OR s.id ILIKE $${params.length})`);
+    }
+
+    // SLA-filter: 'overdue' = SLA-frist overskredet, 'soon' = inden for 24h.
+    if (sla === 'overdue') where.push(`s.sla_frist IS NOT NULL AND s.sla_frist < now() AND s.status <> 'lukket'`);
+    if (sla === 'soon')    where.push(`s.sla_frist IS NOT NULL AND s.sla_frist BETWEEN now() AND now() + interval '24 hours' AND s.status <> 'lukket'`);
+
+    const result = await paginatedQuery(pool, {
+      selectSql: `s.*, k.navn AS kunde_navn,
+                  CASE
+                    WHEN s.status = 'lukket' THEN 'closed'
+                    WHEN s.sla_frist IS NULL THEN 'none'
+                    WHEN s.sla_frist < now() THEN 'overdue'
+                    WHEN s.sla_frist < now() + interval '24 hours' THEN 'soon'
+                    ELSE 'ok'
+                  END AS sla_status`,
+      fromSql: 'sager s LEFT JOIN kunder k ON k.id = s.kunde_id',
+      whereSql: where.join(' AND '),
+      params,
+      orderBy: `CASE WHEN s.status = 'lukket' THEN 1 ELSE 0 END,
+                CASE s.prioritet WHEN 'akut' THEN 0 WHEN 'hoej' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
+                s.oprettet DESC`,
+      limit,
+      offset,
+    });
+    res.json(result);
+  } catch (e) { next(e); }
+});
+
+// KPI-tæller: aggregér åbne sager efter status/prioritet/SLA.
+// Bruges af sage-arbejdsbordet til "kø-bjælker".
+router.get('/stats', async (req, res, next) => {
+  try {
+    const { domain } = req.query;
+    const params = [];
+    let domainFilter = '';
+    if (domain) { params.push(domain); domainFilter = `AND domain = $${params.length}`; }
+
+    const stats = await query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'aaben')::int        AS aaben,
+        COUNT(*) FILTER (WHERE status = 'igang')::int        AS igang,
+        COUNT(*) FILTER (WHERE status = 'venter_kunde')::int AS venter_kunde,
+        COUNT(*) FILTER (WHERE status = 'lukket')::int       AS lukket,
+        COUNT(*) FILTER (WHERE prioritet = 'akut'  AND status <> 'lukket')::int AS akut,
+        COUNT(*) FILTER (WHERE prioritet = 'hoej'  AND status <> 'lukket')::int AS hoej,
+        COUNT(*) FILTER (WHERE sla_frist IS NOT NULL AND sla_frist < now() AND status <> 'lukket')::int AS sla_overdue,
+        COUNT(*) FILTER (WHERE sla_frist IS NOT NULL AND sla_frist BETWEEN now() AND now() + interval '24 hours' AND status <> 'lukket')::int AS sla_soon
+      FROM sager
+      WHERE 1=1 ${domainFilter}
+    `, params);
+    const byKategori = await query(`
+      SELECT kategori, COUNT(*)::int AS n FROM sager
+      WHERE status <> 'lukket' ${domainFilter}
+      GROUP BY kategori ORDER BY n DESC
+    `, params);
+    const byAnsvarlig = await query(`
+      SELECT COALESCE(ansvarlig, '— ikke tildelt') AS ansvarlig, COUNT(*)::int AS n FROM sager
+      WHERE status <> 'lukket' ${domainFilter}
+      GROUP BY ansvarlig ORDER BY n DESC
+    `, params);
+    res.json({ ...stats[0], by_kategori: byKategori, by_ansvarlig: byAnsvarlig });
   } catch (e) { next(e); }
 });
 

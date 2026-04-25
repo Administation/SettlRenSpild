@@ -3,6 +3,9 @@
 -- Tabeller her bruges af begge domæner via service_type / domain-discriminator.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- Trigram-extension giver os hurtig fuzzy søgning på 100k+ rækker.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS kommuner (
   id            TEXT PRIMARY KEY,
   navn          TEXT NOT NULL,
@@ -220,3 +223,40 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_entitet ON audit_log(entitet, entitet_id);
+
+-- Log af indkomne webhook-events fra eksterne systemer (driftssystemer, vægt, m.fl.).
+-- Bruges til debug, idempotens-tjek og dead-letter-håndtering.
+CREATE TABLE IF NOT EXISTS webhook_log (
+  id              SERIAL PRIMARY KEY,
+  provider        TEXT NOT NULL,                          -- 'renoweb' | 'ivar' | 'ambitek' | 'generic'
+  event_type      TEXT NOT NULL,                          -- 'tomning' | 'beholder_ny' | 'rute' | osv.
+  external_id     TEXT,                                   -- providerens event-id, til dedup
+  payload         JSONB NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'modtaget',       -- 'modtaget' | 'behandlet' | 'fejl' | 'ignoreret'
+  fejl            TEXT,
+  resultat_id     TEXT,                                   -- fx tomninger.id ved succes
+  modtaget        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  behandlet       TIMESTAMPTZ,
+  UNIQUE(provider, external_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_status ON webhook_log(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_provider_modtaget ON webhook_log(provider, modtaget DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TRIGRAM-INDEKSER — gør ILIKE '%foo%' hurtig på store tabeller.
+-- Bruges af søgebaren og listefilter.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_kunder_navn_trgm    ON kunder    USING gin (navn   gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_kunder_id_trgm      ON kunder    USING gin (id     gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_kunder_cvr_trgm     ON kunder    USING gin (cvr    gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_kunder_email_trgm   ON kunder    USING gin (email  gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ejendomme_vej_trgm  ON ejendomme USING gin (vejnavn gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_ejendomme_by_trgm   ON ejendomme USING gin (by     gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_sager_titel_trgm    ON sager     USING gin (titel  gin_trgm_ops);
+
+-- B-tree indekser til oprettelses-sortering og fakturanr-opslag.
+CREATE INDEX IF NOT EXISTS idx_kunder_oprettet     ON kunder    (oprettet DESC);
+CREATE INDEX IF NOT EXISTS idx_fakturaer_oprettet  ON fakturaer (oprettet DESC);
+CREATE INDEX IF NOT EXISTS idx_sager_oprettet      ON sager     (oprettet DESC);
+CREATE INDEX IF NOT EXISTS idx_kontrakter_oprettet ON kontrakter(oprettet DESC);

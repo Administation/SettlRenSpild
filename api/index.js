@@ -26,6 +26,7 @@ app.use(async (req, res, next) => {
 });
 
 // Core routes — fælles for alle service-typer.
+app.use('/api/search', require('../routes/search'));
 app.use('/api/kunder', require('../routes/kunder'));
 app.use('/api/ejendomme', require('../routes/ejendomme'));
 app.use('/api/kontrakter', require('../routes/kontrakter'));
@@ -37,6 +38,7 @@ app.use('/api/sager', require('../routes/sager'));
 app.use('/api/dashboard', require('../routes/dashboard'));
 
 // Renovation domæne-routes.
+app.use('/api/renovation/webhook', require('../routes/webhook'));
 app.use('/api/renovation/fraktioner', require('../routes/fraktioner'));
 app.use('/api/renovation/beholdere', require('../routes/beholdere'));
 app.use('/api/renovation/tomninger', require('../routes/tomninger'));

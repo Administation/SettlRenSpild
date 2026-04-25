@@ -17,6 +17,32 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .topbar-brand{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent);letter-spacing:.5px;display:flex;align-items:center;gap:10px;}
 .topbar-brand .badge{font-family:'DM Sans',sans-serif;font-size:10px;background:var(--accent);color:white;padding:3px 8px;border-radius:6px;letter-spacing:1px;font-weight:600;}
+.topbar-search-wrap{position:relative;flex:1;max-width:520px;margin:0 24px;}
+.topbar-search{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;gap:8px;transition:border-color .15s;}
+.topbar-search:focus-within{border-color:var(--accent);background:var(--surface);}
+.topbar-search input{background:none;border:none;font-size:13px;width:100%;outline:none;font-family:inherit;color:var(--text);}
+.topbar-search input::placeholder{color:var(--muted);}
+.search-clear{color:var(--muted);cursor:pointer;font-size:18px;display:none;line-height:1;}
+.search-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:300;box-shadow:0 12px 36px rgba(0,0,0,.14);display:none;max-height:480px;overflow-y:auto;}
+.search-dropdown.open{display:block;}
+.search-section{padding:6px 0;}
+.search-section-header{padding:8px 14px 4px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;}
+.search-item{display:flex;align-items:center;gap:12px;padding:9px 14px;cursor:pointer;border-top:1px solid rgba(226,232,240,.4);}
+.search-item:hover,.search-item.ksel{background:rgba(37,99,235,.08);}
+.si-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;background:var(--surface2);}
+.si-info{flex:1;min-width:0;}
+.si-title{font-weight:500;font-size:13px;line-height:1.3;color:var(--text);}
+.si-meta{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.search-empty{padding:20px;text-align:center;color:var(--muted);font-size:13px;}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface2);font-size:12px;color:var(--muted);}
+.pag-controls{display:flex;gap:6px;align-items:center;}
+.pag-btn{padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;color:var(--light);font-family:inherit;}
+.pag-btn:hover{border-color:var(--accent);color:var(--accent);}
+.pag-btn:disabled{opacity:.4;cursor:not-allowed;}
+.pag-btn.active{background:var(--accent);color:white;border-color:var(--accent);}
+.pag-info{color:var(--muted);}
+
 .topbar-user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--light);}
 .avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:white;}
 
@@ -121,6 +147,14 @@ tr.clickable{cursor:pointer;}
     Settl <span style="color:var(--muted)">RenSpild</span>
     <span class="badge">DEMO</span>
   </div>
+  <div class="topbar-search-wrap">
+    <div class="topbar-search">
+      <span style="color:var(--muted);font-size:14px">🔍</span>
+      <input id="topbar-search" type="text" placeholder="Søg kunder, fakturaer, sager, ejendomme… (CMD+K)" autocomplete="off">
+      <span id="search-clear" class="search-clear">×</span>
+    </div>
+    <div id="search-dropdown" class="search-dropdown"></div>
+  </div>
   <div class="topbar-user">
     <span id="user-name">Driftskoordinator</span>
     <div class="avatar">DK</div>
@@ -140,6 +174,7 @@ tr.clickable{cursor:pointer;}
     <div class="sidebar-section">Renovation</div>
     <div class="sidebar-link" data-view="beholdere"><span class="ico">🗑️</span>Beholdere</div>
     <div class="sidebar-link" data-view="tomninger"><span class="ico">🚛</span>Tømninger</div>
+    <div class="sidebar-link" data-view="webhook"><span class="ico">🔌</span>Webhook-log</div>
     <div class="sidebar-link" data-view="ads"><span class="ico">📤</span>ADS-indberetning</div>
 
     <div class="sidebar-section">Økonomi</div>
@@ -286,20 +321,42 @@ views.dashboard = async () => {
   `;
 };
 
-// ── KUNDER ──
+// ── KUNDER (pagineret + filterbar) ──
 views.kunder = async (params) => {
   if (params.id) return showKunde(params.id);
-  const list = await api('/kunder');
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 50;
+  const q = params.q || '';
+  const status = params.status || '';
+  const type = params.type || '';
+  const qs = new URLSearchParams({ offset, limit, ...(q && { q }), ...(status && { status }), ...(type && { type }) });
+  const data = await api('/kunder?' + qs);
+
   main.innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">Kunder</div><div class="page-sub">${list.length} kunder</div></div>
+      <div><div class="page-title">Kunder</div><div class="page-sub">${fmtNum(data.total)} kunder${q ? ` matcher "${q}"` : ''}</div></div>
       <button class="btn btn-primary" onclick="newKunde()">+ Ny kunde</button>
+    </div>
+    <div class="toolbar">
+      <input id="k-q" type="text" placeholder="Søg navn, ID, CVR, CPR, e-mail…" value="${q}">
+      <select id="k-type"><option value="">Alle typer</option>
+        <option value="privat" ${type==='privat'?'selected':''}>Privat</option>
+        <option value="erhverv" ${type==='erhverv'?'selected':''}>Erhverv</option>
+        <option value="forening" ${type==='forening'?'selected':''}>Forening</option>
+      </select>
+      <select id="k-status"><option value="">Alle status</option>
+        <option value="aktiv" ${status==='aktiv'?'selected':''}>Aktiv</option>
+        <option value="spaerret" ${status==='spaerret'?'selected':''}>Spærret</option>
+        <option value="lukket" ${status==='lukket'?'selected':''}>Lukket</option>
+      </select>
+      <button class="btn" id="k-apply">Filtrer</button>
+      ${(q||status||type) ? '<button class="btn" id="k-reset">Nulstil</button>' : ''}
     </div>
     <div class="card" style="padding:0">
       <table>
         <thead><tr><th>ID</th><th>Navn</th><th>Type</th><th>Kontakt</th><th>Kanal</th><th>Status</th></tr></thead>
         <tbody>
-          ${list.map(k => `
+          ${data.rows.length ? data.rows.map(k => `
             <tr class="clickable" onclick="go('kunder',{id:'${k.id}'})">
               <td>${k.id}</td>
               <td><strong>${k.navn}</strong>${k.cvr ? `<div style="color:var(--muted);font-size:11px">CVR ${k.cvr}</div>` : ''}</td>
@@ -307,11 +364,25 @@ views.kunder = async (params) => {
               <td>${k.email || '—'}<div style="color:var(--muted);font-size:11px">${k.telefon || ''}</div></td>
               <td>${k.faktura_kanal}${k.pbs_aktiv ? ' · PBS' : ''}</td>
               <td>${badge(k.status)}</td>
-            </tr>`).join('')}
+            </tr>`).join('') : '<tr><td colspan="6" class="empty">Ingen kunder matcher</td></tr>'}
         </tbody>
       </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
     </div>
   `;
+  const apply = () => {
+    const next = { offset: 0 };
+    const v = (id) => document.getElementById(id).value.trim();
+    if (v('k-q')) next.q = v('k-q');
+    if (v('k-type')) next.type = v('k-type');
+    if (v('k-status')) next.status = v('k-status');
+    go('kunder', next);
+  };
+  document.getElementById('k-apply').onclick = apply;
+  document.getElementById('k-q').onkeydown = (e) => e.key === 'Enter' && apply();
+  if (document.getElementById('k-reset')) document.getElementById('k-reset').onclick = () => go('kunder');
+  bindPagination(main, data.total, offset, limit, (newOffset) =>
+    go('kunder', { ...params, offset: newOffset }));
 };
 
 async function showKunde(id) {
@@ -402,7 +473,7 @@ views.ejendomme = async () => {
   const list = await api('/ejendomme');
   main.innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">Ejendomme</div><div class="page-sub">${list.length} ejendomme</div></div>
+      <div><div class="page-title">Ejendomme</div><div class="page-sub">${fmtNum(list.length)} ejendomme</div></div>
     </div>
     <div class="card" style="padding:0">
       <table>
@@ -415,18 +486,39 @@ views.ejendomme = async () => {
   `;
 };
 
-// ── KONTRAKTER ──
+// ── KONTRAKTER (pagineret) ──
 views.kontrakter = async (params) => {
   if (params.id) return showKontrakt(params.id);
-  const list = await api('/kontrakter');
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 50;
+  const q = params.q || '';
+  const service_type = params.service_type || '';
+  const status = params.status || '';
+  const qs = new URLSearchParams({ offset, limit, ...(q && { q }), ...(service_type && { service_type }), ...(status && { status }) });
+  const data = await api('/kontrakter?' + qs);
+
   main.innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">Kontrakter</div><div class="page-sub">${list.length} kontrakter</div></div>
+      <div><div class="page-title">Kontrakter</div><div class="page-sub">${fmtNum(data.total)} kontrakter${q ? ` matcher "${q}"` : ''}</div></div>
+    </div>
+    <div class="toolbar">
+      <input id="ko-q" type="text" placeholder="Søg ID, kunde, adresse…" value="${q}">
+      <select id="ko-svc"><option value="">Alle services</option>
+        <option value="renovation" ${service_type==='renovation'?'selected':''}>Renovation</option>
+        <option value="spildevand" ${service_type==='spildevand'?'selected':''}>Spildevand</option>
+      </select>
+      <select id="ko-status"><option value="">Alle status</option>
+        <option value="aktiv" ${status==='aktiv'?'selected':''}>Aktiv</option>
+        <option value="fritaget" ${status==='fritaget'?'selected':''}>Fritaget</option>
+        <option value="opsagt" ${status==='opsagt'?'selected':''}>Opsagt</option>
+      </select>
+      <button class="btn" id="ko-apply">Filtrer</button>
+      ${(q||service_type||status) ? '<button class="btn" id="ko-reset">Nulstil</button>' : ''}
     </div>
     <div class="card" style="padding:0">
       <table>
         <thead><tr><th>ID</th><th>Service</th><th>Kunde</th><th>Adresse</th><th>Start</th><th>Status</th></tr></thead>
-        <tbody>${list.map(k => `
+        <tbody>${data.rows.length ? data.rows.map(k => `
           <tr class="clickable" onclick="go('kontrakter',{id:'${k.id}'})">
             <td>${k.id}</td>
             <td>${badge(k.service_type === 'renovation' ? 'blue' : 'purple', k.service_type)}</td>
@@ -434,10 +526,24 @@ views.kontrakter = async (params) => {
             <td>${k.vejnavn || ''} ${k.husnr || ''}, ${k.postnr || ''} ${k.by || ''}</td>
             <td>${fmtDate(k.start_dato)}</td>
             <td>${badge(k.status)}</td>
-          </tr>`).join('')}</tbody>
+          </tr>`).join('') : '<tr><td colspan="6" class="empty">Ingen kontrakter matcher</td></tr>'}</tbody>
       </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
     </div>
   `;
+  const apply = () => {
+    const next = { offset: 0 };
+    const v = (id) => document.getElementById(id).value.trim();
+    if (v('ko-q')) next.q = v('ko-q');
+    if (v('ko-svc')) next.service_type = v('ko-svc');
+    if (v('ko-status')) next.status = v('ko-status');
+    go('kontrakter', next);
+  };
+  document.getElementById('ko-apply').onclick = apply;
+  document.getElementById('ko-q').onkeydown = (e) => e.key === 'Enter' && apply();
+  if (document.getElementById('ko-reset')) document.getElementById('ko-reset').onclick = () => go('kontrakter');
+  bindPagination(main, data.total, offset, limit, (newOffset) =>
+    go('kontrakter', { ...params, offset: newOffset }));
 };
 
 async function showKontrakt(id) {
@@ -620,18 +726,37 @@ window.generelPlan = async function() {
   toast(`${r.oprettet} planlagte tømninger oprettet`, 'success');
 };
 
-// ── FAKTURAER ──
+// ── FAKTURAER (pagineret) ──
 views.fakturaer = async (params) => {
   if (params.id) return showFaktura(params.id);
-  const list = await api('/fakturaer');
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 50;
+  const q = params.q || '';
+  const status = params.status || '';
+  const qs = new URLSearchParams({ offset, limit, ...(q && { q }), ...(status && { status }) });
+  const data = await api('/fakturaer?' + qs);
+
   main.innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">Fakturaer</div><div class="page-sub">${list.length} fakturaer</div></div>
+      <div><div class="page-title">Fakturaer</div><div class="page-sub">${fmtNum(data.total)} fakturaer${q ? ` matcher "${q}"` : ''}</div></div>
+    </div>
+    <div class="toolbar">
+      <input id="fa-q" type="text" placeholder="Søg fakturanr, kunde…" value="${q}">
+      <select id="fa-status"><option value="">Alle status</option>
+        <option value="kladde" ${status==='kladde'?'selected':''}>Kladde</option>
+        <option value="godkendt" ${status==='godkendt'?'selected':''}>Godkendt</option>
+        <option value="sendt" ${status==='sendt'?'selected':''}>Sendt</option>
+        <option value="betalt" ${status==='betalt'?'selected':''}>Betalt</option>
+        <option value="forfalden" ${status==='forfalden'?'selected':''}>Forfalden</option>
+        <option value="restance" ${status==='restance'?'selected':''}>Restance (forfaldne)</option>
+      </select>
+      <button class="btn" id="fa-apply">Filtrer</button>
+      ${(q||status) ? '<button class="btn" id="fa-reset">Nulstil</button>' : ''}
     </div>
     <div class="card" style="padding:0">
       <table>
         <thead><tr><th>Nr.</th><th>Kunde</th><th>Service</th><th>Periode</th><th>Beløb</th><th>Forfald</th><th>Status</th></tr></thead>
-        <tbody>${list.length ? list.map(f => `
+        <tbody>${data.rows.length ? data.rows.map(f => `
           <tr class="clickable" onclick="go('fakturaer',{id:'${f.id}'})">
             <td>${f.fakturanr}</td>
             <td>${f.kunde_navn}</td>
@@ -640,10 +765,23 @@ views.fakturaer = async (params) => {
             <td>${fmtDKK(f.belob_incl)} kr.</td>
             <td>${fmtDate(f.forfaldsdato)}</td>
             <td>${badge(f.status)}</td>
-          </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen fakturaer endnu — generér via en kontrakt</td></tr>'}</tbody>
+          </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen fakturaer matcher</td></tr>'}</tbody>
       </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
     </div>
   `;
+  const apply = () => {
+    const next = { offset: 0 };
+    const v = (id) => document.getElementById(id).value.trim();
+    if (v('fa-q')) next.q = v('fa-q');
+    if (v('fa-status')) next.status = v('fa-status');
+    go('fakturaer', next);
+  };
+  document.getElementById('fa-apply').onclick = apply;
+  document.getElementById('fa-q').onkeydown = (e) => e.key === 'Enter' && apply();
+  if (document.getElementById('fa-reset')) document.getElementById('fa-reset').onclick = () => go('fakturaer');
+  bindPagination(main, data.total, offset, limit, (newOffset) =>
+    go('fakturaer', { ...params, offset: newOffset }));
 };
 
 async function showFaktura(id) {
@@ -656,6 +794,7 @@ async function showFaktura(id) {
       </div>
       <div style="display:flex;gap:8px">
         <a class="btn" href="/api/fakturaer/${f.id}/html" target="_blank">Print/PDF</a>
+        ${(f.faktura_kanal === 'oioubl' || f.ean || f.cvr) ? `<a class="btn" href="/api/fakturaer/${f.id}/oioubl" target="_blank" title="OIOUBL 2.02 XML til Nemhandel">📄 OIOUBL</a>` : ''}
         ${f.status === 'kladde' ? `<button class="btn btn-success" onclick="godkendFaktura('${f.id}')">Godkend</button>` : ''}
         ${f.status === 'godkendt' ? `<button class="btn btn-primary" onclick="sendFaktura('${f.id}')">Send (${f.faktura_kanal})</button>` : ''}
         ${(f.status === 'sendt' || f.status === 'forfalden') ? `<button class="btn btn-success" onclick="registrerBetaling('${f.id}','${f.belob_incl - f.betalt_belob}')">Registrér betaling</button>` : ''}
@@ -790,6 +929,93 @@ async function showPrisblad(id) {
   `;
 }
 
+// ── WEBHOOK-LOG ──
+views.webhook = async (params) => {
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 50;
+  const provider = params.provider || '';
+  const status = params.status || '';
+  const qs = new URLSearchParams({ offset, limit, ...(provider && { provider }), ...(status && { status }) });
+  const data = await api('/renovation/webhook/log?' + qs);
+
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Webhook-log</div><div class="page-sub">Driftssystemers indkomne tømnings-events</div></div>
+      <button class="btn" onclick="showWebhookHelp()">📖 Test-eksempel</button>
+    </div>
+    <div class="alert alert-info">
+      Endpoint: <code>POST /api/renovation/webhook/tomning/{provider}</code> · Bearer-token kræves ·
+      Providers: <strong>renoweb · ivar · ambitek · generic</strong>
+    </div>
+    <div class="toolbar">
+      <select id="wh-provider"><option value="">Alle providers</option>
+        <option value="renoweb" ${provider==='renoweb'?'selected':''}>RenoWeb</option>
+        <option value="ivar" ${provider==='ivar'?'selected':''}>Ivar</option>
+        <option value="ambitek" ${provider==='ambitek'?'selected':''}>Ambitek</option>
+        <option value="generic" ${provider==='generic'?'selected':''}>Generic</option>
+      </select>
+      <select id="wh-status"><option value="">Alle status</option>
+        <option value="behandlet" ${status==='behandlet'?'selected':''}>Behandlet</option>
+        <option value="ignoreret" ${status==='ignoreret'?'selected':''}>Ignoreret (dup)</option>
+        <option value="fejl" ${status==='fejl'?'selected':''}>Fejl</option>
+        <option value="modtaget" ${status==='modtaget'?'selected':''}>Modtaget (ikke behandlet)</option>
+      </select>
+      <button class="btn" id="wh-apply">Filtrer</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Modtaget</th><th>Provider</th><th>Type</th><th>Ext. ID</th><th>Status</th><th>Resultat / Fejl</th></tr></thead>
+        <tbody>${data.rows.length ? data.rows.map(w => `
+          <tr>
+            <td>${new Date(w.modtaget).toLocaleString('da-DK')}</td>
+            <td>${badge('blue', w.provider)}</td>
+            <td>${w.event_type}</td>
+            <td><code style="font-size:11px">${w.external_id || '—'}</code></td>
+            <td>${badge(w.status === 'behandlet' ? 'green' : w.status === 'fejl' ? 'red' : w.status === 'ignoreret' ? 'gray' : 'yellow', w.status)}</td>
+            <td>${w.fejl ? `<span style="color:var(--red)">${w.fejl}</span>` : (w.resultat_id || '—')}</td>
+          </tr>`).join('') : '<tr><td colspan="6" class="empty">Ingen webhook-events endnu — send et test-event via curl</td></tr>'}</tbody>
+      </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
+    </div>
+  `;
+  document.getElementById('wh-apply').onclick = () => {
+    const next = { offset: 0 };
+    const v = (id) => document.getElementById(id).value;
+    if (v('wh-provider')) next.provider = v('wh-provider');
+    if (v('wh-status')) next.status = v('wh-status');
+    go('webhook', next);
+  };
+  bindPagination(main, data.total, offset, limit, (newOffset) => go('webhook', { ...params, offset: newOffset }));
+};
+
+window.showWebhookHelp = () => {
+  openModal('Test webhook med curl', `
+    <div style="font-size:13px;line-height:1.6">
+      <p><strong>1. Sæt din token (admin gør dette én gang i Vercel):</strong></p>
+      <pre style="background:var(--surface2);padding:12px;border-radius:8px;font-size:12px;overflow-x:auto">vercel env add WEBHOOK_TOKEN production
+# indtast en hemmelig værdi, fx genereret med 'openssl rand -hex 32'</pre>
+
+      <p style="margin-top:14px"><strong>2. Send en RenoWeb-tømning:</strong></p>
+      <pre style="background:var(--surface2);padding:12px;border-radius:8px;font-size:12px;overflow-x:auto">curl -X POST https://settlrenspild.vercel.app/api/renovation/webhook/tomning/renoweb \\
+  -H "Authorization: Bearer DIN_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "eventId": "test-001",
+    "containerId": "BH-DEMO01",
+    "emptiedAt": "2026-04-25T08:30:00Z",
+    "weightKg": 18.5,
+    "driverId": "DRV-42",
+    "route": "Holstebro-N",
+    "gps": {"lat": 56.36, "lon": 8.62}
+  }'</pre>
+
+      <p style="margin-top:14px"><strong>3. Idempotens:</strong> samme <code>eventId</code> kan sendes igen — duplikater ignoreres automatisk og logges som <em>"ignoreret"</em>.</p>
+
+      <p style="margin-top:14px"><strong>4. Andre providers:</strong> brug <code>/ivar</code>, <code>/ambitek</code> eller <code>/generic</code> som suffix. Hver har sit eget format-mapping.</p>
+    </div>
+  `, null, [{ label: 'Luk', action: closeModal }], 'lg');
+};
+
 // ── ADS ──
 views.ads = async () => {
   const [list, kommuner] = await Promise.all([api('/renovation/ads'), api('/kommuner')]);
@@ -850,32 +1076,139 @@ window.indsendAds = async function(id) {
   go('ads');
 };
 
-// ── SAGER ──
+// ── SAGER (arbejdsbord med filtre, SLA-farver og k\u00f8-bjælker) ──
 views.sager = async (params) => {
   if (params.id) return showSag(params.id);
-  const list = await api('/sager');
+  // Default: vis kun åbne sager — det er det driftskoordinatoren typisk kigger på.
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 50;
+  const status = params.status || (params.lukket ? '' : 'aabne');
+  const filters = {
+    domain: params.domain || '',
+    status,
+    prioritet: params.prioritet || '',
+    kategori: params.kategori || '',
+    ansvarlig: params.ansvarlig || '',
+    sla: params.sla || '',
+    q: params.q || '',
+  };
+  const qs = new URLSearchParams({ offset, limit });
+  Object.entries(filters).forEach(([k, v]) => v && qs.set(k, v));
+
+  const [data, stats] = await Promise.all([
+    api('/sager?' + qs),
+    api('/sager/stats' + (filters.domain ? '?domain=' + filters.domain : '')),
+  ]);
+
+  // Hjælpere til kø-bjælke-klik (sætter filter og navigerer).
+  const filterLink = (extra) => "go('sager'," + JSON.stringify({ ...params, ...extra, offset: 0 }) + ')';
+
   main.innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">Sager / reklamationer</div><div class="page-sub">${list.length} sager</div></div>
+      <div><div class="page-title">Sage-arbejdsbord</div><div class="page-sub">${fmtNum(data.total)} sager${filters.q ? ` matcher "${filters.q}"` : ''}</div></div>
       <button class="btn btn-primary" onclick="newSag()">+ Ny sag</button>
     </div>
+
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+      <div class="card clickable" onclick="${filterLink({ status: 'aabne', sla: '' })}">
+        <div class="card-title">Åbne</div>
+        <div class="card-value">${fmtNum(stats.aaben + stats.igang + stats.venter_kunde)}</div>
+      </div>
+      <div class="card clickable" onclick="${filterLink({ prioritet: 'akut' })}">
+        <div class="card-title" style="color:var(--red)">Akut</div>
+        <div class="card-value" style="color:var(--red)">${fmtNum(stats.akut)}</div>
+      </div>
+      <div class="card clickable" onclick="${filterLink({ prioritet: 'hoej' })}">
+        <div class="card-title" style="color:var(--orange)">Høj prioritet</div>
+        <div class="card-value" style="color:var(--orange)">${fmtNum(stats.hoej)}</div>
+      </div>
+      <div class="card clickable" onclick="${filterLink({ sla: 'overdue' })}">
+        <div class="card-title" style="color:var(--red)">SLA overskredet</div>
+        <div class="card-value" style="color:var(--red)">${fmtNum(stats.sla_overdue)}</div>
+      </div>
+      <div class="card clickable" onclick="${filterLink({ sla: 'soon' })}">
+        <div class="card-title" style="color:var(--yellow)">SLA &lt; 24t</div>
+        <div class="card-value" style="color:var(--yellow)">${fmtNum(stats.sla_soon)}</div>
+      </div>
+      <div class="card clickable" onclick="${filterLink({ status: 'venter_kunde' })}">
+        <div class="card-title">Venter på kunde</div>
+        <div class="card-value">${fmtNum(stats.venter_kunde)}</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input id="s-q" type="text" placeholder="Søg titel, ID, beskrivelse…" value="${filters.q}">
+      <select id="s-domain"><option value="">Alle domæner</option>
+        <option value="renovation" ${filters.domain==='renovation'?'selected':''}>Renovation</option>
+        <option value="spildevand" ${filters.domain==='spildevand'?'selected':''}>Spildevand</option>
+        <option value="kunde" ${filters.domain==='kunde'?'selected':''}>Kunde</option>
+      </select>
+      <select id="s-status"><option value="">Alle status</option>
+        <option value="aabne" ${status==='aabne'?'selected':''}>Åbne (alle)</option>
+        <option value="aaben" ${status==='aaben'?'selected':''}>Åben</option>
+        <option value="igang" ${status==='igang'?'selected':''}>I gang</option>
+        <option value="venter_kunde" ${status==='venter_kunde'?'selected':''}>Venter på kunde</option>
+        <option value="lukket" ${status==='lukket'?'selected':''}>Lukket</option>
+      </select>
+      <select id="s-pri"><option value="">Alle prioriteter</option>
+        <option value="akut" ${filters.prioritet==='akut'?'selected':''}>Akut</option>
+        <option value="hoej" ${filters.prioritet==='hoej'?'selected':''}>Høj</option>
+        <option value="normal" ${filters.prioritet==='normal'?'selected':''}>Normal</option>
+        <option value="lav" ${filters.prioritet==='lav'?'selected':''}>Lav</option>
+      </select>
+      <select id="s-sla"><option value="">Alle SLA</option>
+        <option value="overdue" ${filters.sla==='overdue'?'selected':''}>Overskredet</option>
+        <option value="soon" ${filters.sla==='soon'?'selected':''}>Tæt på (&lt;24t)</option>
+      </select>
+      <button class="btn" id="s-apply">Filtrer</button>
+      <button class="btn" id="s-reset">Nulstil</button>
+    </div>
+
     <div class="card" style="padding:0">
       <table>
-        <thead><tr><th>ID</th><th>Domæne</th><th>Titel</th><th>Kunde</th><th>Kategori</th><th>Prioritet</th><th>Status</th><th>Oprettet</th></tr></thead>
-        <tbody>${list.map(s => `
-          <tr class="clickable" onclick="go('sager',{id:'${s.id}'})">
+        <thead><tr>
+          <th>ID</th><th>Domæne</th><th>Titel</th><th>Kunde</th><th>Kategori</th>
+          <th>Prioritet</th><th>SLA</th><th>Status</th><th>Oprettet</th>
+        </tr></thead>
+        <tbody>${data.rows.length ? data.rows.map(s => {
+          const slaBadge = s.sla_status === 'overdue' ? '<span class="badge badge-red">⚠ overskredet</span>'
+                         : s.sla_status === 'soon' ? '<span class="badge badge-yellow">&lt;24t</span>'
+                         : s.sla_status === 'ok' ? '<span class="badge badge-green">OK</span>'
+                         : s.sla_status === 'closed' ? '<span class="badge badge-gray">lukket</span>'
+                         : '<span style="color:var(--muted);font-size:11px">—</span>';
+          return `<tr class="clickable" onclick="go('sager',{id:'${s.id}'})">
             <td>${s.id}</td>
-            <td>${badge(s.domain === 'renovation' ? 'blue' : 'purple', s.domain)}</td>
+            <td>${badge(s.domain === 'renovation' ? 'blue' : s.domain === 'spildevand' ? 'purple' : 'gray', s.domain)}</td>
             <td>${s.titel}</td>
             <td>${s.kunde_navn || '—'}</td>
             <td>${s.kategori || '—'}</td>
-            <td>${badge(s.prioritet === 'akut' ? 'red' : s.prioritet === 'hoej' ? 'orange' : 'gray', s.prioritet)}</td>
+            <td>${badge(s.prioritet === 'akut' ? 'red' : s.prioritet === 'hoej' ? 'orange' : s.prioritet === 'normal' ? 'gray' : 'gray', s.prioritet)}</td>
+            <td>${slaBadge}</td>
             <td>${badge(s.status)}</td>
             <td>${fmtDate(s.oprettet)}</td>
-          </tr>`).join('')}</tbody>
+          </tr>`;
+        }).join('') : '<tr><td colspan="9" class="empty">Ingen sager matcher</td></tr>'}</tbody>
       </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
     </div>
   `;
+
+  const apply = () => {
+    const next = { offset: 0 };
+    const v = (id) => document.getElementById(id).value.trim();
+    if (v('s-q'))      next.q         = v('s-q');
+    if (v('s-domain')) next.domain    = v('s-domain');
+    if (v('s-status') && v('s-status') !== 'aabne') next.status = v('s-status');
+    if (v('s-status') === 'lukket') next.lukket = '1';
+    if (v('s-pri'))    next.prioritet = v('s-pri');
+    if (v('s-sla'))    next.sla       = v('s-sla');
+    go('sager', next);
+  };
+  document.getElementById('s-apply').onclick = apply;
+  document.getElementById('s-q').onkeydown = (e) => e.key === 'Enter' && apply();
+  document.getElementById('s-reset').onclick = () => go('sager');
+  bindPagination(main, data.total, offset, limit, (newOffset) =>
+    go('sager', { ...params, offset: newOffset }));
 };
 
 async function showSag(id) {
@@ -1013,6 +1346,144 @@ function openModal(title, body, onSubmit, customActions, size) {
 }
 function closeModal() {
   if (window._modal) { window._modal.remove(); window._modal = null; }
+}
+
+// ── TOPBAR SØGNING ──
+(function setupSearch() {
+  const input = document.getElementById('topbar-search');
+  const dropdown = document.getElementById('search-dropdown');
+  const clear = document.getElementById('search-clear');
+  let timer = null;
+  let lastQ = '';
+
+  // CMD+K / Ctrl+K fokuserer søgefeltet.
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault(); input.focus(); input.select();
+    }
+    if (e.key === 'Escape' && document.activeElement === input) {
+      input.blur(); dropdown.classList.remove('open');
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clear.style.display = q ? 'inline' : 'none';
+    clearTimeout(timer);
+    if (q.length < 2) { dropdown.classList.remove('open'); return; }
+    timer = setTimeout(() => doSearch(q), 180);
+  });
+  clear.addEventListener('click', () => {
+    input.value = ''; clear.style.display = 'none'; dropdown.classList.remove('open'); input.focus();
+  });
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) dropdown.classList.remove('open');
+  });
+
+  async function doSearch(q) {
+    if (q === lastQ) return;
+    lastQ = q;
+    try {
+      const r = await api('/search?q=' + encodeURIComponent(q));
+      renderDropdown(r, q);
+    } catch (e) {
+      dropdown.innerHTML = `<div class="search-empty">Fejl: ${e.message}</div>`;
+      dropdown.classList.add('open');
+    }
+  }
+
+  function highlight(text, q) {
+    if (!text) return '';
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return text;
+    return text.slice(0, i) + '<mark style="background:rgba(37,99,235,.2);color:inherit;border-radius:2px;padding:0 2px">' + text.slice(i, i + q.length) + '</mark>' + text.slice(i + q.length);
+  }
+
+  function renderDropdown(r, q) {
+    const sections = [];
+    if (r.kunder.length) sections.push({
+      title: 'Kunder', items: r.kunder.map(k => ({
+        icon: k.type === 'erhverv' ? '🏢' : '👤',
+        title: highlight(k.navn, q),
+        meta: `${k.id}${k.cvr ? ' · CVR ' + k.cvr : ''}${k.email ? ' · ' + k.email : ''}`,
+        href: `#kunder?id=${k.id}`,
+      })),
+    });
+    if (r.kontrakter.length) sections.push({
+      title: 'Kontrakter', items: r.kontrakter.map(k => ({
+        icon: '📋', title: highlight(k.id, q),
+        meta: `${k.service_type} · ${k.kunde_navn} · ${k.status}`,
+        href: `#kontrakter?id=${k.id}`,
+      })),
+    });
+    if (r.fakturaer.length) sections.push({
+      title: 'Fakturaer', items: r.fakturaer.map(f => ({
+        icon: '🧾', title: highlight('Faktura ' + (f.fakturanr || f.id), q),
+        meta: `${f.kunde_navn} · ${fmtDKK(f.belob_incl)} kr. · ${f.status}`,
+        href: `#fakturaer?id=${f.id}`,
+      })),
+    });
+    if (r.sager.length) sections.push({
+      title: 'Sager', items: r.sager.map(s => ({
+        icon: '🛟', title: highlight(s.titel, q),
+        meta: `${s.id} · ${s.kunde_navn || '—'} · ${s.status}`,
+        href: `#sager?id=${s.id}`,
+      })),
+    });
+    if (r.ejendomme.length) sections.push({
+      title: 'Ejendomme', items: r.ejendomme.map(e => ({
+        icon: '🏠', title: highlight(`${e.vejnavn} ${e.husnr || ''}`, q),
+        meta: `${e.postnr} ${e.by}`,
+        href: `#ejendomme`,
+      })),
+    });
+
+    if (!sections.length) {
+      dropdown.innerHTML = '<div class="search-empty">Ingen resultater for "' + q + '"</div>';
+    } else {
+      dropdown.innerHTML = sections.map(s => `
+        <div class="search-section">
+          <div class="search-section-header">${s.title} (${s.items.length})</div>
+          ${s.items.map(it => `
+            <div class="search-item" onclick="location.hash='${it.href.slice(1)}';closeSearch();">
+              <div class="si-icon">${it.icon}</div>
+              <div class="si-info">
+                <div class="si-title">${it.title}</div>
+                <div class="si-meta">${it.meta}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      `).join('');
+    }
+    dropdown.classList.add('open');
+  }
+  window.closeSearch = () => { dropdown.classList.remove('open'); input.value = ''; clear.style.display = 'none'; };
+})();
+
+// ── PAGINERING-HJÆLPER ──
+// Renderer pagination-controls under en tabel og kalder onPage(offset) ved klik.
+function renderPagination(total, offset, limit, onPage) {
+  const page = Math.floor(offset / limit) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const showing = total === 0 ? '0' : `${offset + 1}–${Math.min(offset + limit, total)}`;
+  return `
+    <div class="pagination">
+      <div class="pag-info">Viser ${showing} af ${fmtNum(total)}</div>
+      <div class="pag-controls">
+        <button class="pag-btn" ${page <= 1 ? 'disabled' : ''} data-pag="prev">‹ Forrige</button>
+        <span style="margin:0 8px">Side ${page} / ${totalPages}</span>
+        <button class="pag-btn" ${page >= totalPages ? 'disabled' : ''} data-pag="next">Næste ›</button>
+      </div>
+    </div>`;
+}
+function bindPagination(container, total, offset, limit, onPage) {
+  container.querySelectorAll('[data-pag]').forEach(btn => {
+    btn.onclick = () => {
+      const dir = btn.dataset.pag;
+      if (dir === 'prev') onPage(Math.max(0, offset - limit));
+      if (dir === 'next') onPage(offset + limit);
+    };
+  });
 }
 
 // ── INIT ──

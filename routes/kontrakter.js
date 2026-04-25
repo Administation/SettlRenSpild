@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { query, one, pool } = require('../db');
+const { parsePaging, paginatedQuery } = require('../lib/pagination');
 
 function genKontraktId() {
   return 'KO-' + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -8,22 +9,28 @@ function genKontraktId() {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { kunde_id, ejendom_id, service_type, status } = req.query;
+    const { kunde_id, ejendom_id, service_type, status, q } = req.query;
+    const { limit, offset } = parsePaging(req.query, { limit: 50 });
     const where = [];
     const params = [];
     if (kunde_id)    { params.push(kunde_id);    where.push(`k.kunde_id     = $${params.length}`); }
     if (ejendom_id)  { params.push(ejendom_id);  where.push(`k.ejendom_id   = $${params.length}`); }
     if (service_type){ params.push(service_type);where.push(`k.service_type = $${params.length}`); }
     if (status)      { params.push(status);      where.push(`k.status       = $${params.length}`); }
-    const sql = `
-      SELECT k.*, ku.navn AS kunde_navn, e.vejnavn, e.husnr, e.postnr, e.by
-      FROM kontrakter k
-      JOIN kunder ku ON ku.id = k.kunde_id
-      LEFT JOIN ejendomme e ON e.id = k.ejendom_id
-      ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-      ORDER BY k.oprettet DESC LIMIT 300
-    `;
-    res.json(await query(sql, params));
+    if (q) {
+      params.push(`%${q}%`);
+      where.push(`(ku.navn ILIKE $${params.length} OR k.id ILIKE $${params.length} OR e.vejnavn ILIKE $${params.length} OR e.by ILIKE $${params.length})`);
+    }
+    const result = await paginatedQuery(pool, {
+      selectSql: 'k.*, ku.navn AS kunde_navn, e.vejnavn, e.husnr, e.postnr, e.by',
+      fromSql: 'kontrakter k JOIN kunder ku ON ku.id = k.kunde_id LEFT JOIN ejendomme e ON e.id = k.ejendom_id',
+      whereSql: where.join(' AND '),
+      params,
+      orderBy: 'k.oprettet DESC',
+      limit,
+      offset,
+    });
+    res.json(result);
   } catch (e) { next(e); }
 });
 
