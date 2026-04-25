@@ -323,7 +323,7 @@ views.dashboard = async () => {
 
 // ── KUNDER (pagineret + filterbar) ──
 views.kunder = async (params) => {
-  if (params.id) return showKunde(params.id);
+  if (params.id) return showKunde(params.id, params.tab);
   const offset = parseInt(params.offset || '0', 10);
   const limit = 50;
   const q = params.q || '';
@@ -385,57 +385,391 @@ views.kunder = async (params) => {
     go('kunder', { ...params, offset: newOffset }));
 };
 
-async function showKunde(id) {
-  const k = await api('/kunder/' + id);
+async function showKunde(id, tab) {
+  tab = tab || 'overblik';
+  const d = await api('/kunder/' + id + '/360');
+  const k = d.kunde;
+
+  // Type-specifikt: privat = 👤, erhverv = 🏢, forening = 🏘
+  const typeIcon = k.type === 'erhverv' ? '🏢' : k.type === 'forening' ? '🏘' : '👤';
+  const typeLabel = k.type === 'erhverv' ? 'Erhverv' : k.type === 'forening' ? 'Boligforening' : 'Privat';
+  const typeBadge = badge(k.type === 'erhverv' ? 'orange' : k.type === 'forening' ? 'purple' : 'blue', typeLabel);
+
+  // Adresse: hvis kunden har én aktiv kontrakt, vis dens adresse i headeren.
+  const aktivKontrakt = d.kontrakter.find(ko => ko.status === 'aktiv') || d.kontrakter[0];
+  const headerAdr = aktivKontrakt
+    ? `${aktivKontrakt.vejnavn || ''} ${aktivKontrakt.husnr || ''}, ${aktivKontrakt.postnr || ''} ${aktivKontrakt.by || ''}`.trim()
+    : '';
+
+  // Find seneste/næste tømning på tværs af alle beholdere.
+  const seneste = d.tomninger.historik[0];
+  const naeste = d.tomninger.planlagt[0];
+
   main.innerHTML = `
     <div class="page-header">
       <div>
-        <div class="page-title">${k.navn}</div>
-        <div class="page-sub">${k.id} · ${k.type}</div>
+        <div class="page-title" style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:30px">${typeIcon}</span>
+          ${k.navn}
+          ${typeBadge}
+          ${badge(k.status)}
+        </div>
+        <div class="page-sub">${k.id}${headerAdr ? ' · ' + headerAdr : ''}</div>
       </div>
-      <button class="btn" onclick="go('kunder')">← Tilbage</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="kvikOpretSag('${k.id}')">+ Sag</button>
+        <button class="btn btn-primary" onclick="kvikEkstraTomning('${k.id}')">+ Ekstra tømning</button>
+        <button class="btn" onclick="go('kunder')">← Tilbage</button>
+      </div>
     </div>
+
+    <!-- Kontakt-stripe -->
+    <div class="card" style="margin-bottom:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;padding:14px 18px">
+      ${k.email   ? `<div><div class="card-title">E-mail</div><div style="font-size:13px"><a href="mailto:${k.email}">${k.email}</a></div></div>` : ''}
+      ${k.telefon ? `<div><div class="card-title">Telefon</div><div style="font-size:13px"><a href="tel:${k.telefon.replace(/\\s+/g,'')}">${k.telefon}</a></div></div>` : ''}
+      ${k.cvr     ? `<div><div class="card-title">CVR</div><div style="font-size:13px">${k.cvr}</div></div>` : ''}
+      ${k.cpr     ? `<div><div class="card-title">CPR</div><div style="font-size:13px">${k.cpr}</div></div>` : ''}
+      ${k.ean     ? `<div><div class="card-title">EAN</div><div style="font-size:13px">${k.ean}</div></div>` : ''}
+      <div><div class="card-title">Faktura-kanal</div><div style="font-size:13px">${k.faktura_kanal}${k.pbs_aktiv ? ' · PBS' : ''}</div></div>
+      <div><div class="card-title">Kontrakter</div><div style="font-size:13px">${d.kontrakter.length} (${d.kontrakter.filter(x=>x.status==='aktiv').length} aktive)</div></div>
+    </div>
+
+    <!-- Alerts/KPI-tiles -->
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px">
+      <div class="card ${d.alerts.aabne_sager?'clickable':''}" ${d.alerts.aabne_sager?`onclick="showKunde('${k.id}','sager')"`:''}>
+        <div class="card-title" style="${d.alerts.aabne_sager?'color:var(--orange)':''}">Åbne sager</div>
+        <div class="card-value" style="${d.alerts.aabne_sager?'color:var(--orange)':'color:var(--green)'}">${d.alerts.aabne_sager}</div>
+        ${d.alerts.akut_sager?`<div class="card-trend" style="color:var(--red)">⚠ ${d.alerts.akut_sager} akut</div>`:''}
+      </div>
+      <div class="card">
+        <div class="card-title" style="${d.alerts.restance_belob>0?'color:var(--red)':''}">Restance</div>
+        <div class="card-value" style="${d.alerts.restance_belob>0?'color:var(--red)':'color:var(--green)'}">${fmtDKK(d.alerts.restance_belob)} kr.</div>
+        <div class="card-trend">${d.alerts.restance_count} faktura${d.alerts.restance_count===1?'':'er'} forfaldet</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Sidste tømning</div>
+        <div class="card-value-sm">${seneste ? fmtDate(seneste.tomning_dato) : '—'}</div>
+        ${seneste ? `<div class="card-trend">${seneste.fraktion_navn} ${seneste.volumen_l}L${seneste.undtagelseskode?' · ⚠ '+seneste.undtagelseskode:''}</div>` : ''}
+      </div>
+      <div class="card">
+        <div class="card-title">Næste planlagt</div>
+        <div class="card-value-sm">${naeste ? fmtDate(naeste.planlagt_dato) : '—'}</div>
+        ${naeste ? `<div class="card-trend">${naeste.fraktion_navn} ${naeste.volumen_l}L</div>` : ''}
+      </div>
+      <div class="card">
+        <div class="card-title">Beholdere</div>
+        <div class="card-value">${d.beholdere.length}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ufakt. tømninger</div>
+        <div class="card-value">${d.alerts.ufakturerede_tomninger}</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      ${['overblik','tomninger','beholdere','fakturaer','betalinger','sager','aktivitet'].map(t => `
+        <div class="tab ${tab===t?'active':''}" onclick="showKunde('${k.id}','${t}')">${tabLabel(t)}</div>
+      `).join('')}
+    </div>
+    <div id="tab-content"></div>
+  `;
+  document.getElementById('tab-content').innerHTML = renderKundeTab(d, tab);
+  // Husk i URL så supporter kan dele link.
+  location.hash = `#kunder?id=${k.id}&tab=${tab}`;
+}
+
+function tabLabel(t) {
+  return ({
+    overblik: 'Overblik', tomninger: '🚛 Tømninger', beholdere: '🗑️ Beholdere',
+    fakturaer: '🧾 Fakturaer', betalinger: '💶 Betalinger', sager: '🛟 Sager', aktivitet: '📜 Aktivitet'
+  })[t] || t;
+}
+
+function renderKundeTab(d, tab) {
+  if (tab === 'overblik') return renderOverblik(d);
+  if (tab === 'tomninger') return renderTomninger(d);
+  if (tab === 'beholdere') return renderBeholdere(d);
+  if (tab === 'fakturaer') return renderFakturaer(d);
+  if (tab === 'betalinger') return renderBetalinger(d);
+  if (tab === 'sager') return renderKundeSager(d);
+  if (tab === 'aktivitet') return renderAktivitet(d);
+  return '';
+}
+
+function renderOverblik(d) {
+  const aabneSager = d.sager.filter(s => s.status !== 'lukket').slice(0, 5);
+  const recentFak = d.fakturaer.slice(0, 5);
+  return `
     <div class="split">
       <div class="card">
-        <div class="card-title">Stamdata</div>
-        <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value">${k.type}</div></div>
-        ${k.cvr ? `<div class="detail-row"><div class="detail-label">CVR</div><div class="detail-value">${k.cvr}</div></div>` : ''}
-        ${k.cpr ? `<div class="detail-row"><div class="detail-label">CPR</div><div class="detail-value">${k.cpr}</div></div>` : ''}
-        ${k.ean ? `<div class="detail-row"><div class="detail-label">EAN</div><div class="detail-value">${k.ean}</div></div>` : ''}
-        <div class="detail-row"><div class="detail-label">E-mail</div><div class="detail-value">${k.email || '—'}</div></div>
-        <div class="detail-row"><div class="detail-label">Telefon</div><div class="detail-value">${k.telefon || '—'}</div></div>
-        <div class="detail-row"><div class="detail-label">Faktura-kanal</div><div class="detail-value">${k.faktura_kanal}</div></div>
-        <div class="detail-row"><div class="detail-label">PBS-aftale</div><div class="detail-value">${k.pbs_aktiv ? 'Ja (' + (k.pbs_pbsnr || '') + ')' : 'Nej'}</div></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Kontrakter</div>
-        ${k.kontrakter.length ? k.kontrakter.map(ko => `
-          <div style="padding:10px 0;border-bottom:1px solid var(--border)" class="clickable" onclick="go('kontrakter',{id:'${ko.id}'})">
+        <div class="card-title">Adresser & kontrakter</div>
+        ${d.kontrakter.length ? d.kontrakter.map(ko => `
+          <div style="padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="go('kontrakter',{id:'${ko.id}'})">
             <div style="display:flex;justify-content:space-between;align-items:center">
-              <div><strong>${ko.id}</strong> ${badge(ko.service_type === 'renovation' ? 'blue' : 'purple', ko.service_type)}</div>
+              <strong>${ko.vejnavn || ''} ${ko.husnr || ''}</strong>
               ${badge(ko.status)}
             </div>
-            <div style="color:var(--muted);font-size:12px;margin-top:3px">${ko.vejnavn || ''} ${ko.husnr || ''}, ${ko.postnr || ''} ${ko.by || ''}</div>
+            <div style="color:var(--muted);font-size:12px;margin-top:3px">
+              ${ko.postnr || ''} ${ko.by || ''} · ${ko.kommune_navn || '—'} · ${badge(ko.service_type==='renovation'?'blue':'purple', ko.service_type)}
+            </div>
+            <div style="color:var(--muted);font-size:11px;margin-top:3px">${ko.id} · start ${fmtDate(ko.start_dato)}${ko.ejendomstype?' · '+ko.ejendomstype:''}</div>
           </div>`).join('') : '<div class="empty">Ingen kontrakter</div>'}
       </div>
+      <div class="card">
+        <div class="card-title">Beholder-status</div>
+        ${d.beholdere.length ? d.beholdere.map(b => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+              <div>
+                <span class="dot" style="background:${b.farve||'#999'}"></span>
+                <strong>${b.fraktion_navn}</strong> ${b.volumen_l}L · ${b.frekvens}
+              </div>
+              ${b.sidste_tomning?.undtagelseskode
+                ? '<span class="badge badge-orange">⚠ '+b.sidste_tomning.undtagelseskode+'</span>'
+                : badge(b.status)}
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between">
+              <span>Sidst: ${b.sidste_tomning ? fmtDate(b.sidste_tomning.dato) + (b.sidste_tomning.vaegt_kg?` (${Number(b.sidste_tomning.vaegt_kg).toFixed(1)} kg)`:'') : '— ingen registreret'}</span>
+              <span>Næste: ${b.naeste_planlagt ? fmtDate(b.naeste_planlagt) : '— ikke planlagt'}</span>
+            </div>
+          </div>`).join('') : '<div class="empty">Ingen beholdere</div>'}
+      </div>
     </div>
-    <div class="section-title">Fakturaer</div>
+
+    <div class="split" style="margin-top:18px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="card-title" style="margin:0">Åbne sager</div>
+          ${d.sager.length>5?`<a style="font-size:11px;cursor:pointer;color:var(--accent)" onclick="showKunde('${d.kunde.id}','sager')">Se alle ${d.sager.length} →</a>`:''}
+        </div>
+        ${aabneSager.length ? aabneSager.map(s => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="go('sager',{id:'${s.id}'})">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>${s.titel}</strong>
+              ${badge(s.prioritet==='akut'?'red':s.prioritet==='hoej'?'orange':'gray', s.prioritet)}
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">${s.id} · ${s.kategori || '—'} · ${badge(s.status)}${s.sla_status==='overdue'?' · <span style="color:var(--red)">⚠ SLA</span>':''}</div>
+          </div>`).join('') : '<div class="empty">Ingen åbne sager 🎉</div>'}
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="card-title" style="margin:0">Seneste fakturaer</div>
+          ${d.fakturaer.length>5?`<a style="font-size:11px;cursor:pointer;color:var(--accent)" onclick="showKunde('${d.kunde.id}','fakturaer')">Se alle ${d.fakturaer.length} →</a>`:''}
+        </div>
+        ${recentFak.length ? recentFak.map(f => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="go('fakturaer',{id:'${f.id}'})">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>Faktura ${f.fakturanr}</strong>
+              ${badge(f.status)}
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">${fmtDate(f.fakturadato)} · ${fmtDKK(f.belob_incl)} kr.${Number(f.resterer)>0?` · resterer ${fmtDKK(f.resterer)} kr.`:''}</div>
+          </div>`).join('') : '<div class="empty">Ingen fakturaer</div>'}
+      </div>
+    </div>
+  `;
+}
+
+function renderTomninger(d) {
+  const plan = d.tomninger.planlagt;
+  const hist = d.tomninger.historik;
+  return `
+    <div class="split">
+      <div class="card" style="padding:0">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+          <div class="card-title" style="margin:0">Næste planlagte tømninger (${plan.length})</div>
+        </div>
+        ${plan.length ? `<table>
+          <thead><tr><th>Dato</th><th>Beholder</th><th>Volumen</th><th>Rute</th></tr></thead>
+          <tbody>${plan.map(p => `
+            <tr><td><strong>${fmtDate(p.planlagt_dato)}</strong></td>
+              <td><span class="dot" style="background:${p.farve||'#999'}"></span>${p.fraktion_navn}</td>
+              <td>${p.volumen_l}L · ${p.frekvens}</td>
+              <td>${p.rute === 'ekstra' ? '<span class="badge badge-orange">EKSTRA</span>' : (p.rute || '—')}</td></tr>
+          `).join('')}</tbody>
+        </table>` : '<div class="empty">Ingen planlagte tømninger</div>'}
+      </div>
+      <div class="card" style="padding:0">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+          <div class="card-title" style="margin:0">Tømnings-historik (${hist.length} seneste)</div>
+        </div>
+        ${hist.length ? `<table>
+          <thead><tr><th>Dato</th><th>Beholder</th><th>Vægt</th><th>Status</th></tr></thead>
+          <tbody>${hist.map(t => `
+            <tr><td><strong>${fmtDate(t.tomning_dato)}</strong></td>
+              <td><span class="dot" style="background:${t.farve||'#999'}"></span>${t.fraktion_navn} ${t.volumen_l}L</td>
+              <td>${t.vaegt_kg ? Number(t.vaegt_kg).toFixed(1) + ' kg' + (t.vaegt_estimeret?' (est)':'') : '—'}</td>
+              <td>${t.undtagelseskode
+                ? '<span class="badge badge-orange">⚠ '+t.undtagelseskode+'</span>'
+                : '<span class="badge badge-green">OK</span>'}${t.faktureret?'':' <span class="badge badge-gray">ikke fakt.</span>'}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : '<div class="empty">Ingen tømninger registreret endnu</div>'}
+      </div>
+    </div>
+  `;
+}
+
+function renderBeholdere(d) {
+  return `
     <div class="card" style="padding:0">
-      ${k.fakturaer.length ? `<table>
-        <thead><tr><th>Nr.</th><th>Periode</th><th>Dato</th><th>Beløb</th><th>Status</th><th></th></tr></thead>
-        <tbody>${k.fakturaer.map(f => `
+      <table>
+        <thead><tr><th>ID</th><th>Fraktion</th><th>Volumen</th><th>Frekvens</th><th>RFID</th><th>Status</th><th>Sidste tømning</th><th>Næste planlagt</th></tr></thead>
+        <tbody>${d.beholdere.length ? d.beholdere.map(b => `
+          <tr>
+            <td>${b.id}</td>
+            <td><span class="dot" style="background:${b.farve||'#999'}"></span>${b.fraktion_navn}</td>
+            <td>${b.volumen_l} L</td>
+            <td>${b.frekvens}</td>
+            <td>${b.rfid || '—'}</td>
+            <td>${badge(b.status)}</td>
+            <td>${b.sidste_tomning ? fmtDate(b.sidste_tomning.dato) : '—'}</td>
+            <td>${b.naeste_planlagt ? fmtDate(b.naeste_planlagt) : '—'}</td>
+          </tr>`).join('') : '<tr><td colspan="8" class="empty">Ingen beholdere</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderFakturaer(d) {
+  return `
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Nr.</th><th>Periode</th><th>Dato</th><th>Forfald</th><th style="text-align:right">Beløb</th><th style="text-align:right">Resterer</th><th>Status</th><th></th></tr></thead>
+        <tbody>${d.fakturaer.length ? d.fakturaer.map(f => `
           <tr class="clickable" onclick="go('fakturaer',{id:'${f.id}'})">
             <td>${f.fakturanr}</td>
             <td>${fmtDate(f.periode_fra)} – ${fmtDate(f.periode_til)}</td>
             <td>${fmtDate(f.fakturadato)}</td>
-            <td>${fmtDKK(f.belob_incl)} kr.</td>
+            <td>${fmtDate(f.forfaldsdato)}</td>
+            <td style="text-align:right">${fmtDKK(f.belob_incl)} kr.</td>
+            <td style="text-align:right;${Number(f.resterer)>0?'color:var(--red);font-weight:600':''}">${fmtDKK(f.resterer)} kr.</td>
             <td>${badge(f.status)}</td>
-            <td><a href="/api/fakturaer/${f.id}/html" target="_blank" onclick="event.stopPropagation()">Print</a></td>
-          </tr>`).join('')}</tbody>
-      </table>` : '<div class="empty">Ingen fakturaer</div>'}
+            <td><a href="/api/fakturaer/${f.id}/html" target="_blank" onclick="event.stopPropagation()" style="font-size:11px">Print</a></td>
+          </tr>`).join('') : '<tr><td colspan="8" class="empty">Ingen fakturaer</td></tr>'}</tbody>
+      </table>
     </div>
   `;
 }
+
+function renderBetalinger(d) {
+  return `
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th>Faktura</th><th>Metode</th><th>Reference</th><th style="text-align:right">Beløb</th></tr></thead>
+        <tbody>${d.betalinger.length ? d.betalinger.map(b => `
+          <tr class="clickable" onclick="go('fakturaer',{id:'${b.faktura_id}'})">
+            <td>${fmtDate(b.betalingsdato)}</td>
+            <td>${b.fakturanr}</td>
+            <td>${b.metode || '—'}</td>
+            <td>${b.reference || '—'}</td>
+            <td style="text-align:right">${fmtDKK(b.belob)} kr.</td>
+          </tr>`).join('') : '<tr><td colspan="5" class="empty">Ingen indbetalinger</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderKundeSager(d) {
+  return `
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Titel</th><th>Kategori</th><th>Prioritet</th><th>SLA</th><th>Status</th><th>Oprettet</th></tr></thead>
+        <tbody>${d.sager.length ? d.sager.map(s => `
+          <tr class="clickable" onclick="go('sager',{id:'${s.id}'})">
+            <td>${s.id}</td>
+            <td>${s.titel}</td>
+            <td>${s.kategori || '—'}</td>
+            <td>${badge(s.prioritet==='akut'?'red':s.prioritet==='hoej'?'orange':'gray', s.prioritet)}</td>
+            <td>${s.sla_status==='overdue'?'<span class="badge badge-red">overskredet</span>':s.sla_status==='soon'?'<span class="badge badge-yellow">&lt;24t</span>':s.sla_status==='ok'?'<span class="badge badge-green">OK</span>':'—'}</td>
+            <td>${badge(s.status)}</td>
+            <td>${fmtDate(s.oprettet)}</td>
+          </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen sager</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAktivitet(d) {
+  if (!d.aktivitet.length) return '<div class="card"><div class="empty">Ingen aktivitet endnu</div></div>';
+  const icon = (t) => ({ tomning: '🚛', faktura: '🧾', betaling: '💶', sag: '🛟' })[t] || '•';
+  const click = (a) => {
+    if (a.type === 'sag')      return `onclick="go('sager',{id:'${a.ref}'})"`;
+    if (a.type === 'faktura' || a.type === 'betaling') return `onclick="go('fakturaer',{id:'${a.ref}'})"`;
+    return '';
+  };
+  return `
+    <div class="card">
+      <div style="position:relative;padding-left:24px">
+        <div style="position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--border)"></div>
+        ${d.aktivitet.map(a => `
+          <div style="position:relative;padding:10px 0;${a.type==='sag'||a.type==='faktura'||a.type==='betaling'?'cursor:pointer':''}" ${click(a)}>
+            <div style="position:absolute;left:-18px;top:13px;width:18px;height:18px;border-radius:50%;background:var(--surface);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px">${icon(a.type)}</div>
+            <div style="font-size:11px;color:var(--muted)">${fmtDate(a.tid)}${a.bruger?' · '+a.bruger:''}</div>
+            <div style="font-size:13px;margin-top:1px">${a.tekst}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ── Hurtig-handlinger på kunde 360 ──
+window.kvikOpretSag = function(kundeId) {
+  openModal('Ny sag på ' + kundeId, `
+    <div class="form-grid">
+      <div class="form-row"><label>Kategori</label><select id="qs-kat">
+        <option value="manglende_tomning">Manglende tømning</option>
+        <option value="beholder_skadet">Beholder skadet</option>
+        <option value="fakturafejl">Fakturafejl</option>
+        <option value="forkert_indhold">Forkert indhold</option>
+        <option value="andet">Andet</option>
+      </select></div>
+      <div class="form-row"><label>Prioritet</label><select id="qs-pri"><option>lav</option><option selected>normal</option><option>hoej</option><option>akut</option></select></div>
+    </div>
+    <div class="form-row"><label>Titel *</label><input id="qs-titel" placeholder="fx Restaffald ikke tømt fredag"></div>
+    <div class="form-row"><label>Beskrivelse</label><textarea id="qs-beskr" placeholder="Hvad fortalte kunden?"></textarea></div>
+  `, async () => {
+    const data = {
+      kunde_id: kundeId,
+      kategori: document.getElementById('qs-kat').value,
+      prioritet: document.getElementById('qs-pri').value,
+      titel: document.getElementById('qs-titel').value,
+      beskrivelse: document.getElementById('qs-beskr').value,
+      ansvarlig: 'Support',
+      domain: 'renovation',
+    };
+    if (!data.titel) return toast('Titel påkrævet', 'error');
+    await api('/sager', { method: 'POST', body: JSON.stringify(data) });
+    closeModal();
+    toast('Sag oprettet', 'success');
+    showKunde(kundeId, 'sager');
+  });
+};
+
+window.kvikEkstraTomning = async function(kundeId) {
+  const d = await api('/kunder/' + kundeId + '/360');
+  if (!d.beholdere.length) return toast('Kunden har ingen beholdere', 'error');
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0,10);
+  openModal('Bestil ekstra tømning', `
+    <div class="alert alert-info">Opretter en ekstra-tømning + sag til opfølgning. Faktureres på næste afregning.</div>
+    <div class="form-row"><label>Beholder *</label>
+      <select id="ekx-beh">${d.beholdere.map(b => `<option value="${b.id}">${b.fraktion_navn} ${b.volumen_l}L (${b.id})</option>`).join('')}</select>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Ønsket dato *</label><input type="date" id="ekx-dato" value="${tomorrow}"></div>
+      <div class="form-row"><label>Begrundelse</label><input id="ekx-beg" placeholder="fx Kunden manglede tømning"></div>
+    </div>
+  `, async () => {
+    const r = await api('/renovation/tomninger/ekstra', { method: 'POST', body: JSON.stringify({
+      beholder_id: document.getElementById('ekx-beh').value,
+      dato: document.getElementById('ekx-dato').value,
+      begrundelse: document.getElementById('ekx-beg').value,
+      bruger: 'Support',
+    }) });
+    closeModal();
+    toast('Ekstra tømning planlagt — sag ' + r.sag_id, 'success');
+    showKunde(kundeId, 'tomninger');
+  });
+};
 
 window.newKunde = function() {
   openModal('Ny kunde', `

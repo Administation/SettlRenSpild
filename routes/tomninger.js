@@ -70,6 +70,67 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Bestil ekstra tømning — opretter en planlagt tømning + sag, så support kan
+// følge op og faktureringen får en linje på næste afregning.
+router.post('/ekstra', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { beholder_id, dato, begrundelse, bruger='Support' } = req.body;
+    if (!beholder_id || !dato) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'beholder_id og dato påkrævet' });
+    }
+    const beh = (await client.query(`
+      SELECT b.*, k.id AS kontrakt_id, k.kunde_id, k.ejendom_id,
+             ku.navn AS kunde_navn, f.navn AS fraktion_navn
+      FROM beholdere b
+      JOIN kontrakter k ON k.id = b.kontrakt_id
+      JOIN kunder ku ON ku.id = k.kunde_id
+      JOIN fraktioner f ON f.id = b.fraktion_id
+      WHERE b.id = $1
+    `, [beholder_id])).rows[0];
+    if (!beh) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Beholder ikke fundet' }); }
+
+    // 1) Læg en tømningsplan-entry så ruten ved den skal komme.
+    const planRes = await client.query(
+      `INSERT INTO tomningsplaner (beholder_id, planlagt_dato, status, rute)
+       VALUES ($1,$2,'planlagt','ekstra') RETURNING id`,
+      [beholder_id, dato]
+    );
+
+    // 2) Opret en sag så aktiviteten er sporbar og support kan følge op.
+    const sagId = 'SAG-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    await client.query(
+      `INSERT INTO sager (id, domain, kategori, prioritet, titel, beskrivelse, kunde_id, ejendom_id, kontrakt_id, ansvarlig, sla_frist)
+       VALUES ($1,'renovation','ekstra_tomning','normal',$2,$3,$4,$5,$6,$7, now() + interval '3 days')`,
+      [sagId,
+       `Ekstra tømning ${beh.fraktion_navn} ${beh.volumen_l}L`,
+       begrundelse || 'Bestilt af kunde',
+       beh.kunde_id, beh.ejendom_id, beh.kontrakt_id, bruger]
+    );
+    await client.query(
+      `INSERT INTO sag_aktiviteter (sag_id, type, tekst, bruger)
+       VALUES ($1,'oprettet',$2,$3)`,
+      [sagId, `Ekstra tømning planlagt til ${dato} på beholder ${beholder_id}. Pris faktureres på næste afregning.`, bruger]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json({
+      ok: true,
+      sag_id: sagId,
+      plan_id: planRes.rows[0].id,
+      beholder: { id: beholder_id, fraktion: beh.fraktion_navn, volumen: beh.volumen_l },
+      planlagt_dato: dato,
+    });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(e);
+  } finally {
+    client.release();
+  }
+});
+
 // Generér tømningsplan for de næste N uger ud fra beholder-frekvens.
 router.post('/generer-plan', async (req, res, next) => {
   try {
