@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settl RenSpild</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f3f4f8; --surface:#ffffff; --surface2:#f8f9fc; --border:#e2e8f0;
+  --accent:#2563eb; --accent2:#0891b2; --green:#059669; --yellow:#d97706;
+  --red:#dc2626; --orange:#ea580c; --purple:#7c3aed;
+  --text:#111827; --muted:#6b7280; --light:#374151;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.topbar-brand{font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent);letter-spacing:.5px;display:flex;align-items:center;gap:10px;}
+.topbar-brand .badge{font-family:'DM Sans',sans-serif;font-size:10px;background:var(--accent);color:white;padding:3px 8px;border-radius:6px;letter-spacing:1px;font-weight:600;}
+.topbar-user{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--light);}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;color:white;}
+
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 56px);}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;gap:2px;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sidebar-section{padding:16px 22px 6px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;}
+.sidebar-link{display:flex;align-items:center;gap:10px;padding:10px 22px;color:var(--light);cursor:pointer;border-left:3px solid transparent;font-weight:500;transition:all .15s;}
+.sidebar-link:hover{background:var(--surface2);color:var(--accent);}
+.sidebar-link.active{background:rgba(37,99,235,.06);border-left-color:var(--accent);color:var(--accent);}
+.sidebar-link .ico{font-size:16px;width:20px;display:inline-flex;justify-content:center;}
+.sidebar-link .count{margin-left:auto;background:var(--surface2);font-size:10px;padding:2px 7px;border-radius:10px;color:var(--muted);}
+.sidebar-link.active .count{background:var(--accent);color:white;}
+
+.main{padding:24px 32px;overflow-y:auto;max-height:calc(100vh - 56px);}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;gap:16px;flex-wrap:wrap;}
+.page-title{font-family:'DM Serif Display',serif;font-size:26px;color:var(--text);}
+.page-sub{color:var(--muted);font-size:13px;margin-top:2px;}
+.btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--light);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:white;border-color:var(--accent);}
+.btn-primary:hover{background:#1d4ed8;color:white;}
+.btn-success{background:var(--green);color:white;border-color:var(--green);}
+.btn-success:hover{background:#047857;color:white;}
+.btn-sm{padding:5px 11px;font-size:12px;}
+.btn-icon{padding:6px 8px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+.card-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px;}
+.card-value{font-size:28px;font-weight:600;color:var(--text);}
+.card-value-sm{font-size:18px;font-weight:600;}
+.card-trend{font-size:12px;color:var(--muted);margin-top:4px;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+.section-title{font-family:'DM Serif Display',serif;font-size:18px;margin:24px 0 12px;color:var(--text);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:10px 12px;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+td{padding:12px;border-bottom:1px solid var(--border);}
+tr:hover td{background:var(--surface2);}
+tr.clickable{cursor:pointer;}
+
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:.3px;}
+.badge-blue{background:rgba(37,99,235,.1);color:var(--accent);}
+.badge-green{background:rgba(5,150,105,.1);color:var(--green);}
+.badge-yellow{background:rgba(217,119,6,.1);color:var(--yellow);}
+.badge-red{background:rgba(220,38,38,.1);color:var(--red);}
+.badge-orange{background:rgba(234,88,12,.1);color:var(--orange);}
+.badge-purple{background:rgba(124,58,237,.1);color:var(--purple);}
+.badge-gray{background:rgba(107,114,128,.1);color:var(--muted);}
+
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;}
+
+.toolbar{display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;}
+.toolbar input,.toolbar select{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:13px;font-family:inherit;color:var(--text);}
+.toolbar input{flex:1;min-width:200px;}
+.toolbar input:focus,.toolbar select:focus{outline:none;border-color:var(--accent);}
+
+.form-row{margin-bottom:14px;}
+.form-row label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:13px;font-family:inherit;color:var(--text);}
+.form-row textarea{min-height:80px;resize:vertical;}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{outline:none;border-color:var(--accent);}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.4);display:flex;align-items:center;justify-content:center;z-index:500;padding:24px;}
+.modal-box{background:var(--surface);border-radius:14px;padding:28px;width:100%;max-width:680px;max-height:85vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,.18);}
+.modal-box.lg{max-width:920px;}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.modal-title{font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);}
+.modal-close{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);}
+
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.tab{padding:10px 18px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;font-weight:500;font-size:13px;}
+.tab:hover{color:var(--accent);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.empty{padding:48px 16px;text-align:center;color:var(--muted);font-size:14px;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.detail-row{display:flex;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.detail-row:last-child{border:none;}
+.detail-label{color:var(--muted);width:160px;flex-shrink:0;font-weight:500;}
+.detail-value{color:var(--text);flex:1;font-weight:500;}
+
+.alert{padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.alert-info{background:rgba(37,99,235,.08);color:var(--accent);border:1px solid rgba(37,99,235,.18);}
+.alert-warn{background:rgba(217,119,6,.08);color:var(--yellow);border:1px solid rgba(217,119,6,.18);}
+.alert-error{background:rgba(220,38,38,.08);color:var(--red);border:1px solid rgba(220,38,38,.18);}
+.alert-success{background:rgba(5,150,105,.08);color:var(--green);border:1px solid rgba(5,150,105,.18);}
+
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:white;padding:12px 18px;border-radius:10px;font-size:13px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.2);animation:slideIn .3s;}
+@keyframes slideIn{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    Settl <span style="color:var(--muted)">RenSpild</span>
+    <span class="badge">DEMO</span>
+  </div>
+  <div class="topbar-user">
+    <span id="user-name">Driftskoordinator</span>
+    <div class="avatar">DK</div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Overblik</div>
+    <div class="sidebar-link" data-view="dashboard"><span class="ico">📊</span>Dashboard</div>
+
+    <div class="sidebar-section">Kunder & ejendomme</div>
+    <div class="sidebar-link" data-view="kunder"><span class="ico">👥</span>Kunder</div>
+    <div class="sidebar-link" data-view="ejendomme"><span class="ico">🏠</span>Ejendomme</div>
+    <div class="sidebar-link" data-view="kontrakter"><span class="ico">📋</span>Kontrakter</div>
+
+    <div class="sidebar-section">Renovation</div>
+    <div class="sidebar-link" data-view="beholdere"><span class="ico">🗑️</span>Beholdere</div>
+    <div class="sidebar-link" data-view="tomninger"><span class="ico">🚛</span>Tømninger</div>
+    <div class="sidebar-link" data-view="ads"><span class="ico">📤</span>ADS-indberetning</div>
+
+    <div class="sidebar-section">Økonomi</div>
+    <div class="sidebar-link" data-view="fakturaer"><span class="ico">🧾</span>Fakturaer</div>
+    <div class="sidebar-link" data-view="prisblade"><span class="ico">💶</span>Prisblade</div>
+
+    <div class="sidebar-section">Service</div>
+    <div class="sidebar-link" data-view="sager"><span class="ico">🛟</span>Sager <span id="sidebar-sager" class="count"></span></div>
+
+    <div class="sidebar-section">Andre services</div>
+    <div class="sidebar-link" style="opacity:.5;cursor:not-allowed" title="Kommer i næste fase"><span class="ico">💧</span>Spildevand</div>
+  </nav>
+
+  <main class="main" id="main">
+    <div class="empty"><div class="spinner"></div> Indlæser…</div>
+  </main>
+</div>
+
+<script>
+const api = (path, opts = {}) => fetch('/api' + path, {
+  ...opts,
+  headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+}).then(async r => {
+  const t = await r.text();
+  if (!r.ok) throw new Error(t || r.statusText);
+  return t ? JSON.parse(t) : null;
+});
+
+const fmtDKK = v => new Intl.NumberFormat('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v || 0));
+const fmtDate = s => s ? new Date(s).toLocaleDateString('da-DK') : '—';
+const fmtNum = (v, d = 0) => v == null ? '—' : Number(v).toLocaleString('da-DK', { maximumFractionDigits: d });
+
+const STATUS_BADGE = {
+  aktiv: 'green', kladde: 'gray', godkendt: 'blue', sendt: 'blue',
+  betalt: 'green', forfalden: 'orange', rykker: 'red', inddrivelse: 'red',
+  krediteret: 'gray', historisk: 'gray', fritaget: 'yellow', opsagt: 'gray',
+  aaben: 'orange', igang: 'blue', venter_kunde: 'yellow', lukket: 'gray',
+  planlagt: 'gray', gennemfoert: 'green', afvist: 'red', aflyst: 'gray',
+  indsendt: 'green',
+};
+const badge = (s, label) => `<span class="badge badge-${STATUS_BADGE[s] || 'gray'}">${label || s}</span>`;
+
+function toast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  if (type === 'error') t.style.background = 'var(--red)';
+  if (type === 'success') t.style.background = 'var(--green)';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+const main = document.getElementById('main');
+
+// ── Routing via sidebar ──
+const views = {};
+function go(view, params = {}) {
+  document.querySelectorAll('.sidebar-link').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+  location.hash = '#' + view + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '');
+  main.innerHTML = '<div class="empty"><div class="spinner"></div> Indlæser…</div>';
+  (views[view] || views.dashboard)(params).catch(e => {
+    main.innerHTML = `<div class="alert alert-error">Fejl: ${e.message}</div>`;
+  });
+}
+
+document.querySelectorAll('.sidebar-link').forEach(el => {
+  el.addEventListener('click', () => el.dataset.view && go(el.dataset.view));
+});
+
+window.addEventListener('hashchange', parseHash);
+function parseHash() {
+  const [view, qs] = (location.hash.slice(1) || 'dashboard').split('?');
+  const params = Object.fromEntries(new URLSearchParams(qs || ''));
+  go(view, params);
+}
+
+// ── DASHBOARD ──
+views.dashboard = async () => {
+  const d = await api('/dashboard');
+  document.getElementById('sidebar-sager').textContent = d.abne_sager || '';
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Driftsoverblik · ${new Date().toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="card">
+        <div class="card-title">Aktive kunder</div>
+        <div class="card-value">${fmtNum(d.kunder)}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Aktive kontrakter</div>
+        <div class="card-value">${fmtNum(d.kontrakter.total)}</div>
+        <div class="card-trend">${d.kontrakter.renovation} renovation · ${d.kontrakter.spildevand || 0} spildevand</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Åbne sager</div>
+        <div class="card-value" style="color:${d.abne_sager ? 'var(--orange)' : 'var(--green)'}">${fmtNum(d.abne_sager)}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Ufakturerede tømninger</div>
+        <div class="card-value">${fmtNum(d.ufakturerede_tomninger)}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Kladde-fakturaer</div>
+        <div class="card-value">${fmtNum(d.kladde_fakturaer.n)}</div>
+        <div class="card-trend">${fmtDKK(d.kladde_fakturaer.belob)} kr.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Restance</div>
+        <div class="card-value" style="color:${d.restance.n ? 'var(--red)' : 'var(--green)'}">${fmtDKK(d.restance.belob)} kr.</div>
+        <div class="card-trend">${d.restance.n} fakturaer over forfald</div>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <div class="section-title" style="margin:0 0 12px">Seneste fakturaer</div>
+        ${d.naeste_fakturaer.length ? `<table>
+          <thead><tr><th>Nr.</th><th>Kunde</th><th>Dato</th><th>Beløb</th><th>Status</th></tr></thead>
+          <tbody>
+            ${d.naeste_fakturaer.map(f => `
+              <tr class="clickable" onclick="go('fakturaer',{id:'${f.id}'})">
+                <td>${f.fakturanr}</td>
+                <td>${f.kunde_navn}</td>
+                <td>${fmtDate(f.fakturadato)}</td>
+                <td>${fmtDKK(f.belob_incl)}</td>
+                <td>${badge(f.status)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : '<div class="empty">Ingen fakturaer endnu</div>'}
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin:0 0 12px">Sager pr. kategori</div>
+        ${d.sager_by_kategori.length ? `<table>
+          <thead><tr><th>Kategori</th><th>Antal</th></tr></thead>
+          <tbody>${d.sager_by_kategori.map(s => `<tr><td>${s.kategori || '—'}</td><td>${s.n}</td></tr>`).join('')}</tbody>
+        </table>` : '<div class="empty">Ingen åbne sager</div>'}
+      </div>
+    </div>
+  `;
+};
+
+// ── KUNDER ──
+views.kunder = async (params) => {
+  if (params.id) return showKunde(params.id);
+  const list = await api('/kunder');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Kunder</div><div class="page-sub">${list.length} kunder</div></div>
+      <button class="btn btn-primary" onclick="newKunde()">+ Ny kunde</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Navn</th><th>Type</th><th>Kontakt</th><th>Kanal</th><th>Status</th></tr></thead>
+        <tbody>
+          ${list.map(k => `
+            <tr class="clickable" onclick="go('kunder',{id:'${k.id}'})">
+              <td>${k.id}</td>
+              <td><strong>${k.navn}</strong>${k.cvr ? `<div style="color:var(--muted);font-size:11px">CVR ${k.cvr}</div>` : ''}</td>
+              <td>${badge(k.type === 'erhverv' ? 'orange' : 'blue', k.type)}</td>
+              <td>${k.email || '—'}<div style="color:var(--muted);font-size:11px">${k.telefon || ''}</div></td>
+              <td>${k.faktura_kanal}${k.pbs_aktiv ? ' · PBS' : ''}</td>
+              <td>${badge(k.status)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+};
+
+async function showKunde(id) {
+  const k = await api('/kunder/' + id);
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">${k.navn}</div>
+        <div class="page-sub">${k.id} · ${k.type}</div>
+      </div>
+      <button class="btn" onclick="go('kunder')">← Tilbage</button>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-title">Stamdata</div>
+        <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value">${k.type}</div></div>
+        ${k.cvr ? `<div class="detail-row"><div class="detail-label">CVR</div><div class="detail-value">${k.cvr}</div></div>` : ''}
+        ${k.cpr ? `<div class="detail-row"><div class="detail-label">CPR</div><div class="detail-value">${k.cpr}</div></div>` : ''}
+        ${k.ean ? `<div class="detail-row"><div class="detail-label">EAN</div><div class="detail-value">${k.ean}</div></div>` : ''}
+        <div class="detail-row"><div class="detail-label">E-mail</div><div class="detail-value">${k.email || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Telefon</div><div class="detail-value">${k.telefon || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Faktura-kanal</div><div class="detail-value">${k.faktura_kanal}</div></div>
+        <div class="detail-row"><div class="detail-label">PBS-aftale</div><div class="detail-value">${k.pbs_aktiv ? 'Ja (' + (k.pbs_pbsnr || '') + ')' : 'Nej'}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Kontrakter</div>
+        ${k.kontrakter.length ? k.kontrakter.map(ko => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--border)" class="clickable" onclick="go('kontrakter',{id:'${ko.id}'})">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><strong>${ko.id}</strong> ${badge(ko.service_type === 'renovation' ? 'blue' : 'purple', ko.service_type)}</div>
+              ${badge(ko.status)}
+            </div>
+            <div style="color:var(--muted);font-size:12px;margin-top:3px">${ko.vejnavn || ''} ${ko.husnr || ''}, ${ko.postnr || ''} ${ko.by || ''}</div>
+          </div>`).join('') : '<div class="empty">Ingen kontrakter</div>'}
+      </div>
+    </div>
+    <div class="section-title">Fakturaer</div>
+    <div class="card" style="padding:0">
+      ${k.fakturaer.length ? `<table>
+        <thead><tr><th>Nr.</th><th>Periode</th><th>Dato</th><th>Beløb</th><th>Status</th><th></th></tr></thead>
+        <tbody>${k.fakturaer.map(f => `
+          <tr class="clickable" onclick="go('fakturaer',{id:'${f.id}'})">
+            <td>${f.fakturanr}</td>
+            <td>${fmtDate(f.periode_fra)} – ${fmtDate(f.periode_til)}</td>
+            <td>${fmtDate(f.fakturadato)}</td>
+            <td>${fmtDKK(f.belob_incl)} kr.</td>
+            <td>${badge(f.status)}</td>
+            <td><a href="/api/fakturaer/${f.id}/html" target="_blank" onclick="event.stopPropagation()">Print</a></td>
+          </tr>`).join('')}</tbody>
+      </table>` : '<div class="empty">Ingen fakturaer</div>'}
+    </div>
+  `;
+}
+
+window.newKunde = function() {
+  openModal('Ny kunde', `
+    <div class="form-grid">
+      <div class="form-row"><label>Navn *</label><input id="f-navn"></div>
+      <div class="form-row"><label>Type</label><select id="f-type"><option value="privat">Privat</option><option value="erhverv">Erhverv</option><option value="forening">Forening</option></select></div>
+      <div class="form-row"><label>CPR</label><input id="f-cpr"></div>
+      <div class="form-row"><label>CVR</label><input id="f-cvr"></div>
+      <div class="form-row"><label>EAN</label><input id="f-ean"></div>
+      <div class="form-row"><label>E-mail</label><input id="f-email" type="email"></div>
+      <div class="form-row"><label>Telefon</label><input id="f-telefon"></div>
+      <div class="form-row"><label>Faktura-kanal</label><select id="f-kanal"><option>eboks</option><option>oioubl</option><option>email</option><option>papir</option><option>pbs</option></select></div>
+    </div>
+  `, async () => {
+    const data = {
+      navn: document.getElementById('f-navn').value,
+      type: document.getElementById('f-type').value,
+      cpr: document.getElementById('f-cpr').value || null,
+      cvr: document.getElementById('f-cvr').value || null,
+      ean: document.getElementById('f-ean').value || null,
+      email: document.getElementById('f-email').value || null,
+      telefon: document.getElementById('f-telefon').value || null,
+      faktura_kanal: document.getElementById('f-kanal').value,
+    };
+    if (!data.navn) return toast('Navn påkrævet', 'error');
+    const k = await api('/kunder', { method: 'POST', body: JSON.stringify(data) });
+    closeModal();
+    toast('Kunde oprettet', 'success');
+    go('kunder', { id: k.id });
+  });
+};
+
+// ── EJENDOMME ──
+views.ejendomme = async () => {
+  const list = await api('/ejendomme');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Ejendomme</div><div class="page-sub">${list.length} ejendomme</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Adresse</th><th>By</th><th>Kommune</th><th>Type</th></tr></thead>
+        <tbody>${list.map(e => `
+          <tr><td>${e.id}</td><td>${e.vejnavn} ${e.husnr || ''}</td><td>${e.postnr} ${e.by}</td><td>${e.kommune_id || '—'}</td><td>${e.ejendomstype || '—'}</td></tr>
+        `).join('')}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+// ── KONTRAKTER ──
+views.kontrakter = async (params) => {
+  if (params.id) return showKontrakt(params.id);
+  const list = await api('/kontrakter');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Kontrakter</div><div class="page-sub">${list.length} kontrakter</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Service</th><th>Kunde</th><th>Adresse</th><th>Start</th><th>Status</th></tr></thead>
+        <tbody>${list.map(k => `
+          <tr class="clickable" onclick="go('kontrakter',{id:'${k.id}'})">
+            <td>${k.id}</td>
+            <td>${badge(k.service_type === 'renovation' ? 'blue' : 'purple', k.service_type)}</td>
+            <td>${k.kunde_navn}</td>
+            <td>${k.vejnavn || ''} ${k.husnr || ''}, ${k.postnr || ''} ${k.by || ''}</td>
+            <td>${fmtDate(k.start_dato)}</td>
+            <td>${badge(k.status)}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+async function showKontrakt(id) {
+  const k = await api('/kontrakter/' + id);
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">${k.id}</div>
+        <div class="page-sub">${k.service_type} · ${k.kunde_navn} · ${k.vejnavn || ''} ${k.husnr || ''}, ${k.postnr || ''} ${k.by || ''}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="simulerFaktura('${k.id}')">Simulér faktura</button>
+        <button class="btn" onclick="go('kontrakter')">← Tilbage</button>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-title">Kontrakt</div>
+        <div class="detail-row"><div class="detail-label">Service</div><div class="detail-value">${k.service_type}</div></div>
+        <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${badge(k.status)}</div></div>
+        <div class="detail-row"><div class="detail-label">Start</div><div class="detail-value">${fmtDate(k.start_dato)}</div></div>
+        <div class="detail-row"><div class="detail-label">Slut</div><div class="detail-value">${fmtDate(k.slut_dato)}</div></div>
+        <div class="detail-row"><div class="detail-label">Kommune</div><div class="detail-value">${k.kommune_id || '—'}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Beholdere${k.service_type === 'renovation' ? ` (${k.beholdere.length})` : ''}</div>
+        ${k.service_type === 'renovation' ? (k.beholdere.length ? k.beholdere.map(b => `
+          <div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span class="dot" style="background:${b.farve || '#999'}"></span>
+              <strong>${b.fraktion_navn}</strong> · ${b.volumen_l}L · ${b.frekvens}
+              <div style="color:var(--muted);font-size:11px;margin-left:14px">${b.id}${b.rfid ? ' · RFID ' + b.rfid : ''}</div>
+            </div>
+            ${badge(b.status)}
+          </div>`).join('') : '<div class="empty">Ingen beholdere</div>') : '<div class="empty">N/A for spildevand</div>'}
+      </div>
+    </div>
+  `;
+}
+
+window.simulerFaktura = async function(kontraktId) {
+  const today = new Date();
+  const fra = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
+  const til = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().slice(0, 10);
+  openModal('Faktura-simulation', `
+    <div class="form-grid">
+      <div class="form-row"><label>Periode fra</label><input type="date" id="sim-fra" value="${fra}"></div>
+      <div class="form-row"><label>Periode til</label><input type="date" id="sim-til" value="${til}"></div>
+    </div>
+    <div id="sim-result"></div>
+  `, null, [
+    { label: 'Beregn', primary: true, action: async () => {
+      const f = document.getElementById('sim-fra').value;
+      const t = document.getElementById('sim-til').value;
+      const r = await api('/fakturaer/simuler', { method: 'POST', body: JSON.stringify({ kontrakt_id: kontraktId, periode_fra: f, periode_til: t }) });
+      document.getElementById('sim-result').innerHTML = renderSimResult(r, kontraktId);
+    } },
+    { label: 'Luk', action: closeModal },
+  ], 'lg');
+};
+
+function renderSimResult(r, kontraktId) {
+  return `
+    <div class="alert alert-info">Prisblad ${r.prisblad.version} · ${r.linjer.length} linjer</div>
+    <table>
+      <thead><tr><th>Beskrivelse</th><th>Antal</th><th style="text-align:right">Enhedspris</th><th style="text-align:right">Beløb (excl)</th></tr></thead>
+      <tbody>${r.linjer.map(l => `
+        <tr><td>${l.beskrivelse}${l.match === false ? ' <span style="color:var(--red);font-size:11px">⚠ ingen pris</span>' : ''}</td>
+        <td>${fmtNum(l.antal, 2)} ${l.enhed}</td>
+        <td style="text-align:right">${fmtDKK(l.enhedspris)}</td>
+        <td style="text-align:right"><strong>${fmtDKK(l.belob_excl)}</strong></td></tr>`).join('')}</tbody>
+    </table>
+    <div style="margin-top:14px;text-align:right">
+      <div>Subtotal: ${fmtDKK(r.total.belob_excl)} kr.</div>
+      <div>Moms: ${fmtDKK(r.total.moms)} kr.</div>
+      <div style="font-size:18px;font-weight:600;margin-top:6px">I alt: ${fmtDKK(r.total.belob_incl)} kr.</div>
+    </div>
+    <div style="margin-top:16px;text-align:right">
+      <button class="btn btn-success" onclick="genererFaktura('${kontraktId}','${r.periode.fra}','${r.periode.til}')">Generér faktura</button>
+    </div>
+  `;
+}
+
+window.genererFaktura = async function(kontrakt_id, fra, til) {
+  const f = await api('/fakturaer/generer', { method: 'POST', body: JSON.stringify({ kontrakt_id, periode_fra: fra, periode_til: til }) });
+  closeModal();
+  toast('Faktura ' + f.fakturanr + ' oprettet', 'success');
+  go('fakturaer', { id: f.id });
+};
+
+// ── BEHOLDERE ──
+views.beholdere = async () => {
+  const list = await api('/renovation/beholdere');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Beholdere</div><div class="page-sub">${list.length} beholdere</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Fraktion</th><th>Volumen</th><th>Frekvens</th><th>Kunde</th><th>Adresse</th><th>Status</th></tr></thead>
+        <tbody>${list.map(b => `
+          <tr class="clickable" onclick="go('kontrakter',{id:'${b.kontrakt_id}'})">
+            <td>${b.id}</td>
+            <td><span class="dot" style="background:${b.farve || '#999'}"></span>${b.fraktion_navn}</td>
+            <td>${b.volumen_l} L</td>
+            <td>${b.frekvens}</td>
+            <td>${b.kunde_navn}</td>
+            <td>${b.vejnavn || ''} ${b.husnr || ''}</td>
+            <td>${badge(b.status)}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+// ── TØMNINGER ──
+views.tomninger = async () => {
+  const [tom, beh] = await Promise.all([api('/renovation/tomninger'), api('/renovation/beholdere')]);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Tømninger</div><div class="page-sub">${tom.length} seneste tømninger</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="generelPlan()">Generér plan (12 uger)</button>
+        <button class="btn btn-primary" onclick="newTomning()">+ Registrér tømning</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th>Beholder</th><th>Fraktion</th><th>Kunde</th><th>Vægt</th><th>Undtagelse</th><th>Faktureret</th></tr></thead>
+        <tbody>${tom.map(t => `
+          <tr>
+            <td>${fmtDate(t.tomning_dato)}</td>
+            <td>${t.beholder_id} (${t.volumen_l}L)</td>
+            <td><span class="dot" style="background:${t.farve || '#999'}"></span>${t.fraktion_navn}</td>
+            <td>${t.kunde_navn}</td>
+            <td>${t.vaegt_kg ? fmtNum(t.vaegt_kg, 1) + ' kg' + (t.vaegt_estimeret ? ' (est)' : '') : '—'}</td>
+            <td>${t.undtagelseskode ? badge('orange', t.undtagelseskode) : '—'}</td>
+            <td>${t.faktureret ? badge('green', 'ja') : badge('gray', 'nej')}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <script>window._beholdere = ${JSON.stringify(beh)};</script>
+  `;
+};
+
+window.newTomning = function() {
+  const beh = window._beholdere || [];
+  openModal('Registrér tømning', `
+    <div class="form-row"><label>Beholder *</label>
+      <select id="t-beh">
+        ${beh.map(b => `<option value="${b.id}">${b.id} · ${b.fraktion_navn} ${b.volumen_l}L · ${b.kunde_navn}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Dato *</label><input type="date" id="t-dato" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="form-row"><label>Vægt (kg)</label><input type="number" step="0.1" id="t-vaegt" placeholder="auto-estimeres"></div>
+      <div class="form-row"><label>Undtagelseskode</label>
+        <select id="t-undt"><option value="">—</option><option value="ikke_fremstillet">Ikke fremstillet</option><option value="overfyldt">Overfyldt</option><option value="forkert_indhold">Forkert indhold</option><option value="ikke_tilgaengelig">Ikke tilgængelig</option></select>
+      </div>
+      <div class="form-row"><label>Chauffør</label><input id="t-chauf"></div>
+    </div>
+  `, async () => {
+    const data = {
+      beholder_id: document.getElementById('t-beh').value,
+      tomning_dato: document.getElementById('t-dato').value,
+      vaegt_kg: document.getElementById('t-vaegt').value || null,
+      undtagelseskode: document.getElementById('t-undt').value || null,
+      chauffoer: document.getElementById('t-chauf').value || null,
+      kilde: 'manuel',
+    };
+    await api('/renovation/tomninger', { method: 'POST', body: JSON.stringify(data) });
+    closeModal();
+    toast('Tømning registreret', 'success');
+    go('tomninger');
+  });
+};
+
+window.generelPlan = async function() {
+  const r = await api('/renovation/tomninger/generer-plan', { method: 'POST', body: JSON.stringify({ uger: 12 }) });
+  toast(`${r.oprettet} planlagte tømninger oprettet`, 'success');
+};
+
+// ── FAKTURAER ──
+views.fakturaer = async (params) => {
+  if (params.id) return showFaktura(params.id);
+  const list = await api('/fakturaer');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Fakturaer</div><div class="page-sub">${list.length} fakturaer</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Nr.</th><th>Kunde</th><th>Service</th><th>Periode</th><th>Beløb</th><th>Forfald</th><th>Status</th></tr></thead>
+        <tbody>${list.length ? list.map(f => `
+          <tr class="clickable" onclick="go('fakturaer',{id:'${f.id}'})">
+            <td>${f.fakturanr}</td>
+            <td>${f.kunde_navn}</td>
+            <td>${badge(f.service_type === 'renovation' ? 'blue' : 'purple', f.service_type)}</td>
+            <td>${fmtDate(f.periode_fra)} – ${fmtDate(f.periode_til)}</td>
+            <td>${fmtDKK(f.belob_incl)} kr.</td>
+            <td>${fmtDate(f.forfaldsdato)}</td>
+            <td>${badge(f.status)}</td>
+          </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen fakturaer endnu — generér via en kontrakt</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+async function showFaktura(id) {
+  const f = await api('/fakturaer/' + id);
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Faktura ${f.fakturanr}</div>
+        <div class="page-sub">${f.kunde_navn} · ${fmtDate(f.periode_fra)} – ${fmtDate(f.periode_til)}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a class="btn" href="/api/fakturaer/${f.id}/html" target="_blank">Print/PDF</a>
+        ${f.status === 'kladde' ? `<button class="btn btn-success" onclick="godkendFaktura('${f.id}')">Godkend</button>` : ''}
+        ${f.status === 'godkendt' ? `<button class="btn btn-primary" onclick="sendFaktura('${f.id}')">Send (${f.faktura_kanal})</button>` : ''}
+        ${(f.status === 'sendt' || f.status === 'forfalden') ? `<button class="btn btn-success" onclick="registrerBetaling('${f.id}','${f.belob_incl - f.betalt_belob}')">Registrér betaling</button>` : ''}
+        <button class="btn" onclick="go('fakturaer')">← Tilbage</button>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-title">Faktura</div>
+        <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${badge(f.status)}</div></div>
+        <div class="detail-row"><div class="detail-label">Service</div><div class="detail-value">${f.service_type}</div></div>
+        <div class="detail-row"><div class="detail-label">Fakturadato</div><div class="detail-value">${fmtDate(f.fakturadato)}</div></div>
+        <div class="detail-row"><div class="detail-label">Forfald</div><div class="detail-value">${fmtDate(f.forfaldsdato)}</div></div>
+        <div class="detail-row"><div class="detail-label">Kanal</div><div class="detail-value">${f.faktura_kanal}</div></div>
+        <div class="detail-row"><div class="detail-label">Subtotal</div><div class="detail-value">${fmtDKK(f.belob_excl)} kr.</div></div>
+        <div class="detail-row"><div class="detail-label">Moms</div><div class="detail-value">${fmtDKK(f.moms)} kr.</div></div>
+        <div class="detail-row"><div class="detail-label">I alt</div><div class="detail-value"><strong>${fmtDKK(f.belob_incl)} kr.</strong></div></div>
+        <div class="detail-row"><div class="detail-label">Betalt</div><div class="detail-value">${fmtDKK(f.betalt_belob)} kr.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Modtager</div>
+        <div class="detail-row"><div class="detail-label">Kunde</div><div class="detail-value">${f.kunde_navn}</div></div>
+        ${f.cvr ? `<div class="detail-row"><div class="detail-label">CVR</div><div class="detail-value">${f.cvr}</div></div>` : ''}
+        ${f.cpr ? `<div class="detail-row"><div class="detail-label">CPR</div><div class="detail-value">${f.cpr}</div></div>` : ''}
+        <div class="detail-row"><div class="detail-label">Adresse</div><div class="detail-value">${f.vejnavn || ''} ${f.husnr || ''}, ${f.postnr || ''} ${f.by || ''}</div></div>
+        <div class="detail-row"><div class="detail-label">Kommune</div><div class="detail-value">${f.kommune_navn || '—'}</div></div>
+      </div>
+    </div>
+    <div class="section-title">Linjer</div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Beskrivelse</th><th>Type</th><th>Antal</th><th style="text-align:right">Enhedspris</th><th style="text-align:right">Beløb (excl)</th><th style="text-align:right">Moms</th><th style="text-align:right">I alt</th></tr></thead>
+        <tbody>${f.linjer.map(l => `
+          <tr>
+            <td>${l.beskrivelse}</td>
+            <td>${l.type}</td>
+            <td>${fmtNum(l.antal, 2)} ${l.enhed || ''}</td>
+            <td style="text-align:right">${fmtDKK(l.enhedspris)}</td>
+            <td style="text-align:right">${fmtDKK(l.belob_excl)}</td>
+            <td style="text-align:right">${fmtDKK(l.moms)}</td>
+            <td style="text-align:right"><strong>${fmtDKK(l.belob_incl)}</strong></td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+    ${f.betalinger.length ? `
+      <div class="section-title">Betalinger</div>
+      <div class="card" style="padding:0"><table>
+        <thead><tr><th>Dato</th><th>Metode</th><th>Reference</th><th style="text-align:right">Beløb</th></tr></thead>
+        <tbody>${f.betalinger.map(b => `<tr><td>${fmtDate(b.betalingsdato)}</td><td>${b.metode || '—'}</td><td>${b.reference || '—'}</td><td style="text-align:right">${fmtDKK(b.belob)} kr.</td></tr>`).join('')}</tbody>
+      </table></div>` : ''}
+  `;
+}
+
+window.godkendFaktura = async function(id) {
+  await api(`/fakturaer/${id}/godkend`, { method: 'POST', body: JSON.stringify({ bruger: 'Driftskoordinator' }) });
+  toast('Faktura godkendt', 'success');
+  go('fakturaer', { id });
+};
+window.sendFaktura = async function(id) {
+  const r = await api(`/fakturaer/${id}/send`, { method: 'POST' });
+  toast('Sendt via ' + r.mock.kanal, 'success');
+  go('fakturaer', { id });
+};
+window.registrerBetaling = function(id, restbelob) {
+  openModal('Registrér betaling', `
+    <div class="form-grid">
+      <div class="form-row"><label>Beløb *</label><input type="number" step="0.01" id="b-belob" value="${Number(restbelob).toFixed(2)}"></div>
+      <div class="form-row"><label>Dato</label><input type="date" id="b-dato" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="form-row"><label>Metode</label><select id="b-metode"><option>pbs</option><option>bankoverforsel</option><option>mobilepay</option><option>kort</option></select></div>
+      <div class="form-row"><label>Reference</label><input id="b-ref"></div>
+    </div>
+  `, async () => {
+    await api('/betalinger', { method: 'POST', body: JSON.stringify({
+      faktura_id: id,
+      belob: parseFloat(document.getElementById('b-belob').value),
+      betalingsdato: document.getElementById('b-dato').value,
+      metode: document.getElementById('b-metode').value,
+      reference: document.getElementById('b-ref').value || null,
+    }) });
+    closeModal();
+    toast('Betaling registreret', 'success');
+    go('fakturaer', { id });
+  });
+};
+
+// ── PRISBLADE ──
+views.prisblade = async (params) => {
+  if (params.id) return showPrisblad(params.id);
+  const list = await api('/prisblade');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Prisblade</div><div class="page-sub">${list.length} prisblade</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Kommune</th><th>Service</th><th>Version</th><th>Gyldig</th><th>Linjer</th><th>Status</th></tr></thead>
+        <tbody>${list.map(p => `
+          <tr class="clickable" onclick="go('prisblade',{id:'${p.id}'})">
+            <td>${p.kommune_navn}</td>
+            <td>${badge(p.service_type === 'renovation' ? 'blue' : 'purple', p.service_type)}</td>
+            <td>${p.version}</td>
+            <td>${fmtDate(p.gyldig_fra)}${p.gyldig_til ? ' – ' + fmtDate(p.gyldig_til) : ''}</td>
+            <td>${p.linjer}</td>
+            <td>${badge(p.status)}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+async function showPrisblad(id) {
+  const p = await api('/prisblade/' + id);
+  const grouper = {};
+  for (const l of p.linjer) (grouper[l.type] = grouper[l.type] || []).push(l);
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">${p.kommune_navn} · ${p.version}</div>
+        <div class="page-sub">${p.service_type} · ${fmtDate(p.gyldig_fra)} – ${fmtDate(p.gyldig_til) || '∞'} · ${badge(p.status)}</div>
+      </div>
+      <button class="btn" onclick="go('prisblade')">← Tilbage</button>
+    </div>
+    ${Object.entries(grouper).map(([type, ls]) => `
+      <div class="section-title">${type[0].toUpperCase() + type.slice(1)}</div>
+      <div class="card" style="padding:0;margin-bottom:16px">
+        <table>
+          <thead><tr><th>Nøgle</th><th>Beskrivelse</th><th>Enhed</th><th style="text-align:right">Enhedspris</th><th style="text-align:right">Moms</th></tr></thead>
+          <tbody>${ls.map(l => `<tr><td>${l.noegle}</td><td>${l.beskrivelse}</td><td>${l.enhed || '—'}</td><td style="text-align:right">${fmtDKK(l.enhedspris)} kr.</td><td style="text-align:right">${l.moms_pct}%</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ── ADS ──
+views.ads = async () => {
+  const [list, kommuner] = await Promise.all([api('/renovation/ads'), api('/kommuner')]);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">ADS-indberetning</div><div class="page-sub">Kvartalsvis indberetning til Miljøstyrelsen</div></div>
+      <button class="btn btn-primary" onclick="newAds()">+ Beregn ny indberetning</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Kommune</th><th>Periode</th><th>Total kg</th><th>Tømninger</th><th>Status</th><th></th></tr></thead>
+        <tbody>${list.length ? list.map(a => `
+          <tr>
+            <td>${a.id}</td>
+            <td>${a.kommune_navn}</td>
+            <td>${a.periode}</td>
+            <td>${fmtNum(a.total_kg, 1)} kg</td>
+            <td>${a.total_tomninger}</td>
+            <td>${badge(a.status)}</td>
+            <td>${a.status === 'kladde' ? `<button class="btn btn-sm" onclick="godkendAds('${a.id}')">Godkend</button>` : ''}
+                ${a.status === 'godkendt' ? `<button class="btn btn-sm btn-primary" onclick="indsendAds('${a.id}')">Indsend</button>` : ''}</td>
+          </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen indberetninger endnu</td></tr>'}</tbody>
+      </table>
+    </div>
+    <script>window._kommuner = ${JSON.stringify(kommuner)};</script>
+  `;
+};
+
+window.newAds = function() {
+  const km = window._kommuner || [];
+  const aar = new Date().getFullYear();
+  openModal('Beregn ADS-indberetning', `
+    <div class="form-grid">
+      <div class="form-row"><label>Kommune</label><select id="ads-kom">${km.map(k => `<option value="${k.id}">${k.navn}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Periode</label><select id="ads-per">
+        <option>${aar}-Q1</option><option>${aar}-Q2</option><option>${aar}-Q3</option><option>${aar}-Q4</option>
+        <option>${aar - 1}-Q4</option><option>${aar - 1}-Q3</option>
+      </select></div>
+    </div>
+  `, async () => {
+    const r = await api('/renovation/ads/beregn', { method: 'POST', body: JSON.stringify({
+      kommune_id: document.getElementById('ads-kom').value,
+      periode: document.getElementById('ads-per').value,
+    }) });
+    closeModal();
+    toast('Indberetning beregnet: ' + fmtNum(r.total_kg, 1) + ' kg', 'success');
+    go('ads');
+  });
+};
+window.godkendAds = async function(id) {
+  await api(`/renovation/ads/${id}/godkend`, { method: 'POST', body: JSON.stringify({ godkendt_af: 'Manager' }) });
+  toast('Godkendt', 'success');
+  go('ads');
+};
+window.indsendAds = async function(id) {
+  const r = await api(`/renovation/ads/${id}/indsend`, { method: 'POST' });
+  toast('Indsendt: ref ' + r.mock.reference, 'success');
+  go('ads');
+};
+
+// ── SAGER ──
+views.sager = async (params) => {
+  if (params.id) return showSag(params.id);
+  const list = await api('/sager');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Sager / reklamationer</div><div class="page-sub">${list.length} sager</div></div>
+      <button class="btn btn-primary" onclick="newSag()">+ Ny sag</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Domæne</th><th>Titel</th><th>Kunde</th><th>Kategori</th><th>Prioritet</th><th>Status</th><th>Oprettet</th></tr></thead>
+        <tbody>${list.map(s => `
+          <tr class="clickable" onclick="go('sager',{id:'${s.id}'})">
+            <td>${s.id}</td>
+            <td>${badge(s.domain === 'renovation' ? 'blue' : 'purple', s.domain)}</td>
+            <td>${s.titel}</td>
+            <td>${s.kunde_navn || '—'}</td>
+            <td>${s.kategori || '—'}</td>
+            <td>${badge(s.prioritet === 'akut' ? 'red' : s.prioritet === 'hoej' ? 'orange' : 'gray', s.prioritet)}</td>
+            <td>${badge(s.status)}</td>
+            <td>${fmtDate(s.oprettet)}</td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+async function showSag(id) {
+  const s = await api('/sager/' + id);
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">${s.titel}</div>
+        <div class="page-sub">${s.id} · ${badge(s.status)} · ${badge(s.prioritet === 'akut' ? 'red' : 'gray', s.prioritet)}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        ${s.status !== 'lukket' ? `<button class="btn btn-success" onclick="lukSag('${s.id}')">Luk sag</button>` : ''}
+        <button class="btn" onclick="go('sager')">← Tilbage</button>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-title">Detaljer</div>
+        <div class="detail-row"><div class="detail-label">Domæne</div><div class="detail-value">${s.domain}</div></div>
+        <div class="detail-row"><div class="detail-label">Kategori</div><div class="detail-value">${s.kategori || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Ansvarlig</div><div class="detail-value">${s.ansvarlig || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Kunde</div><div class="detail-value">${s.kunde_id || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Oprettet</div><div class="detail-value">${fmtDate(s.oprettet)}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Beskrivelse</div>
+        <div>${s.beskrivelse || '<span class="empty">Ingen beskrivelse</span>'}</div>
+      </div>
+    </div>
+    <div class="section-title">Aktivitetslog</div>
+    <div class="card">
+      ${s.aktiviteter.length ? s.aktiviteter.map(a => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted)">${fmtDate(a.oprettet)} · ${a.bruger || 'System'} · ${a.type}</div>
+          <div>${a.tekst}</div>
+        </div>`).join('') : '<div class="empty">Ingen aktivitet</div>'}
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <input id="kom-tekst" placeholder="Tilføj kommentar…" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit">
+        <button class="btn btn-primary" onclick="kommenterSag('${s.id}')">Tilføj</button>
+      </div>
+    </div>
+  `;
+}
+
+window.kommenterSag = async function(id) {
+  const tekst = document.getElementById('kom-tekst').value;
+  if (!tekst) return;
+  await api(`/sager/${id}/kommentar`, { method: 'POST', body: JSON.stringify({ tekst, bruger: 'Support' }) });
+  go('sager', { id });
+};
+window.lukSag = async function(id) {
+  await api(`/sager/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'lukket', bruger: 'Support' }) });
+  toast('Sag lukket', 'success');
+  go('sager', { id });
+};
+
+window.newSag = async function() {
+  const kunder = await api('/kunder');
+  openModal('Ny sag', `
+    <div class="form-grid">
+      <div class="form-row"><label>Domæne</label><select id="s-dom"><option value="renovation">Renovation</option><option value="kunde">Kunde</option></select></div>
+      <div class="form-row"><label>Kategori</label><select id="s-kat">
+        <option value="manglende_tomning">Manglende tømning</option>
+        <option value="beholder_skadet">Beholder skadet</option>
+        <option value="fakturafejl">Fakturafejl</option>
+        <option value="forkert_indhold">Forkert indhold</option>
+        <option value="andet">Andet</option>
+      </select></div>
+      <div class="form-row"><label>Prioritet</label><select id="s-pri"><option>lav</option><option selected>normal</option><option>hoej</option><option>akut</option></select></div>
+      <div class="form-row"><label>Kunde</label><select id="s-kunde"><option value="">—</option>${kunder.map(k => `<option value="${k.id}">${k.navn} (${k.id})</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row"><label>Titel *</label><input id="s-titel"></div>
+    <div class="form-row"><label>Beskrivelse</label><textarea id="s-beskr"></textarea></div>
+  `, async () => {
+    const data = {
+      domain: document.getElementById('s-dom').value,
+      kategori: document.getElementById('s-kat').value,
+      prioritet: document.getElementById('s-pri').value,
+      kunde_id: document.getElementById('s-kunde').value || null,
+      titel: document.getElementById('s-titel').value,
+      beskrivelse: document.getElementById('s-beskr').value,
+      ansvarlig: 'Support',
+    };
+    if (!data.titel) return toast('Titel påkrævet', 'error');
+    const s = await api('/sager', { method: 'POST', body: JSON.stringify(data) });
+    closeModal();
+    toast('Sag oprettet', 'success');
+    go('sager', { id: s.id });
+  });
+};
+
+// ── MODAL helpers ──
+function openModal(title, body, onSubmit, customActions, size) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal';
+  overlay.innerHTML = `
+    <div class="modal-box ${size === 'lg' ? 'lg' : ''}">
+      <div class="modal-header">
+        <div class="modal-title">${title}</div>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">${body}</div>
+      <div class="modal-actions"></div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay._el = overlay;
+  window._modal = overlay;
+  const actions = overlay.querySelector('.modal-actions');
+  if (customActions) {
+    customActions.forEach(a => {
+      const b = document.createElement('button');
+      b.className = 'btn ' + (a.primary ? 'btn-primary' : '');
+      b.textContent = a.label;
+      b.onclick = a.action;
+      actions.appendChild(b);
+    });
+  } else {
+    const cancel = document.createElement('button');
+    cancel.className = 'btn';
+    cancel.textContent = 'Annullér';
+    cancel.onclick = closeModal;
+    actions.appendChild(cancel);
+    if (onSubmit) {
+      const ok = document.createElement('button');
+      ok.className = 'btn btn-primary';
+      ok.textContent = 'Gem';
+      ok.onclick = async () => {
+        try { await onSubmit(); }
+        catch (e) { toast(e.message, 'error'); }
+      };
+      actions.appendChild(ok);
+    }
+  }
+  overlay.querySelector('.modal-close').onclick = closeModal;
+}
+function closeModal() {
+  if (window._modal) { window._modal.remove(); window._modal = null; }
+}
+
+// ── INIT ──
+parseHash();
+</script>
+</body>
+</html>

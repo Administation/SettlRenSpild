@@ -1,0 +1,19 @@
+{
+  "name": "settlrenspild",
+  "version": "0.1.0",
+  "description": "Settl RenSpild — afregning af renovation (og senere spildevand) i Danmark",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.21.0",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "vercel": "^50.42.0"
+  }
+}
