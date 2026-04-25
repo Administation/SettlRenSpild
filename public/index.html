@@ -579,8 +579,8 @@ views.tomninger = async () => {
           </tr>`).join('')}</tbody>
       </table>
     </div>
-    <script>window._beholdere = ${JSON.stringify(beh)};</script>
   `;
+  window._beholdere = beh;
 };
 
 window.newTomning = function() {
@@ -814,8 +814,8 @@ views.ads = async () => {
           </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen indberetninger endnu</td></tr>'}</tbody>
       </table>
     </div>
-    <script>window._kommuner = ${JSON.stringify(kommuner)};</script>
   `;
+  window._kommuner = kommuner;
 };
 
 window.newAds = function() {
