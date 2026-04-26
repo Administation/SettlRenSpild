@@ -35,8 +35,32 @@ module.exports = async function seed(pool) {
     );
   }
 
+  // ── Helligdage 2026 (nationale, gælder alle kommuner) ──
+  const helligdage2026 = [
+    { dato: '2026-01-01', navn: 'Nytårsdag' },
+    { dato: '2026-04-02', navn: 'Skærtorsdag' },
+    { dato: '2026-04-03', navn: 'Langfredag' },
+    { dato: '2026-04-05', navn: 'Påskedag' },
+    { dato: '2026-04-06', navn: '2. påskedag' },
+    { dato: '2026-05-01', navn: 'Store bededag' },
+    { dato: '2026-05-14', navn: 'Kristi himmelfart' },
+    { dato: '2026-05-24', navn: 'Pinsedag' },
+    { dato: '2026-05-25', navn: '2. pinsedag' },
+    { dato: '2026-12-24', navn: 'Juleaften' },
+    { dato: '2026-12-25', navn: 'Juledag' },
+    { dato: '2026-12-26', navn: '2. juledag' },
+    { dato: '2026-12-31', navn: 'Nytårsaftensdag' },
+  ];
+  for (const h of helligdage2026) {
+    await pool.query(
+      `INSERT INTO helligdage (kommune_id, dato, navn) VALUES (NULL,$1,$2)
+       ON CONFLICT (kommune_id, dato) DO NOTHING`,
+      [h.dato, h.navn]
+    );
+  }
+
   // ── Stop hvis der allerede er data ──
-  const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM kunder`);
+  const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM kunder`).catch(() => ({ rows: [{ n: 0 }] }));
   if (rows[0].n > 0) return;
 
   // ── Prisblad: Holstebro 2026 ──

@@ -243,6 +243,35 @@ CREATE TABLE IF NOT EXISTS webhook_log (
 CREATE INDEX IF NOT EXISTS idx_webhook_status ON webhook_log(status);
 CREATE INDEX IF NOT EXISTS idx_webhook_provider_modtaget ON webhook_log(provider, modtaget DESC);
 
+-- UC-26 Betalingsaftaler — ratebetaling for kunder i restance.
+CREATE TABLE IF NOT EXISTS betalingsaftaler (
+  id              TEXT PRIMARY KEY,
+  faktura_id      TEXT NOT NULL REFERENCES fakturaer(id),
+  kunde_id        TEXT NOT NULL REFERENCES kunder(id),
+  total_belob     NUMERIC(12,2) NOT NULL,
+  antal_rater     INTEGER NOT NULL,
+  rater           JSONB NOT NULL,                         -- [{ nr, dato, belob, status }]
+  status          TEXT NOT NULL DEFAULT 'aktiv',          -- 'aktiv' | 'gennemfoert' | 'misligholdt' | 'annulleret'
+  oprettet        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  oprettet_af     TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_betalingsaftaler_faktura ON betalingsaftaler(faktura_id);
+CREATE INDEX IF NOT EXISTS idx_betalingsaftaler_status ON betalingsaftaler(status);
+
+-- UC-16 Helligdage og deres effekt på tømningsruter.
+CREATE TABLE IF NOT EXISTS helligdage (
+  id              SERIAL PRIMARY KEY,
+  kommune_id      TEXT REFERENCES kommuner(id),           -- NULL = gælder alle kommuner (nationale helligdage)
+  dato            DATE NOT NULL,
+  navn            TEXT NOT NULL,
+  forskyder_til   DATE,                                   -- hvornår tømningen flyttes til (NULL = aflyses)
+  noter           TEXT,
+  UNIQUE(kommune_id, dato)
+);
+
+CREATE INDEX IF NOT EXISTS idx_helligdage_dato ON helligdage(dato);
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- TRIGRAM-INDEKSER — gør ILIKE '%foo%' hurtig på store tabeller.
 -- Bruges af søgebaren og listefilter.

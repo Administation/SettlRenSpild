@@ -12,7 +12,7 @@ const UC = [
   { id: 'UC-04', titel: 'Kontraktovertagelse ved ejerskifte',         gruppe: 'stamdata', status: 'partial', note: 'Manuel via /kontrakter/:id/fraflyt med ny_ejer_kunde_id. BBR-trigger mock.' },
   { id: 'UC-05', titel: 'Indlæs nyt kommuneprisblad',                 gruppe: 'stamdata', status: 'done',    note: 'POST /api/prisblade + linjer endpoint + godkend.' },
   { id: 'UC-06', titel: 'Opdater kommuneregulativ',                   gruppe: 'stamdata', status: 'partial', note: 'Schema: affaldsregulativer findes. UI/validering mangler.' },
-  { id: 'UC-07', titel: 'Generer og udsend afhentningskalender',      gruppe: 'stamdata', status: 'missing', note: 'PDF/iCal-eksport mangler.' },
+  { id: 'UC-07', titel: 'Generer og udsend afhentningskalender',      gruppe: 'stamdata', status: 'done',    note: 'GET /kunder/:id/kalender.ics (RFC 5545) + /kalender.html. Kan abonneres i digital kalender.' },
   { id: 'UC-08', titel: 'Vedligehold beholderregister',               gruppe: 'stamdata', status: 'done',    note: 'Beholdere CRUD + webhook-synk fra driftssystem.' },
 
   // GROUP 2 — Drift & Tømning
@@ -20,34 +20,34 @@ const UC = [
   { id: 'UC-10', titel: 'Modtag og match tømningskvitteringer',       gruppe: 'drift', status: 'done',    note: 'Webhook-route med 4 providers (renoweb/ivar/ambitek/generic) + idempotens.' },
   { id: 'UC-11', titel: 'Håndter tømningsundtagelse',                 gruppe: 'drift', status: 'partial', note: 'undtagelseskode-felt findes. Auto-eskalering til reklamation mangler.' },
   { id: 'UC-12', titel: 'Bestil omtømning',                           gruppe: 'drift', status: 'partial', note: 'Genbruger ekstra-tomning-flow. Dedikeret modtagelse fra reklamation mangler.' },
-  { id: 'UC-13', titel: 'Bestil beholderbytte',                       gruppe: 'drift', status: 'missing', note: 'Flow + sag+driftssystem-bestilling mangler.' },
+  { id: 'UC-13', titel: 'Bestil beholderbytte',                       gruppe: 'drift', status: 'done',    note: 'POST /renovation/beholdere/:id/bytte — opretter sag + opdaterer register + audit.' },
   { id: 'UC-14', titel: 'Pause/stop tømningsplan',                    gruppe: 'drift', status: 'done',    note: 'Inkluderet i fritag/fraflyt-flows: aflyser planlagte tømninger.' },
   { id: 'UC-15', titel: 'SLA-overvågning og eskalering',              gruppe: 'drift', status: 'done',    note: 'sla_status (overdue/soon) i sager-route + KPI-tiles på sage-arbejdsbordet.' },
-  { id: 'UC-16', titel: 'Konfigurer helligdagsruter',                 gruppe: 'drift', status: 'missing', note: 'Helligdagskalender + auto-justering af tomningsplaner mangler.' },
+  { id: 'UC-16', titel: 'Konfigurer helligdagsruter',                 gruppe: 'drift', status: 'done',    note: 'helligdage-tabel m/ 13 nationale helligdage seedet. POST /helligdage/justér-planer flytter tømninger.' },
   { id: 'UC-17', titel: 'Akkumuler affaldsdata til ADS',              gruppe: 'drift', status: 'done',    note: 'POST /renovation/ads/beregn aggregerer kg/tomninger pr. fraktion.' },
 
   // GROUP 3 — Kundesupport
   { id: 'UC-18', titel: 'Reklamation om glemt tømning',               gruppe: 'support', status: 'done',    note: 'Sager-flow + Kunde 360 quick-action "+ Sag".' },
   { id: 'UC-19', titel: 'Bestil ekstra tømning (on-demand)',          gruppe: 'support', status: 'done',    note: 'POST /renovation/tomninger/ekstra + UI quick-action.' },
-  { id: 'UC-20', titel: 'Bestil storskraldafhentning',                gruppe: 'support', status: 'missing', note: 'Storskrald-bestilling med tidsvindue mangler.' },
+  { id: 'UC-20', titel: 'Bestil storskraldafhentning',                gruppe: 'support', status: 'done',    note: 'POST /storskrald m/ 6 typer + tidsvindue. Opretter sag, audit-log.' },
   { id: 'UC-21', titel: 'Ændr beholderkomposition',                   gruppe: 'support', status: 'partial', note: 'PUT /renovation/beholdere/:id virker. Regulativ-validering mangler.' },
   { id: 'UC-22', titel: 'Sæsonophør / midlertidig fritagelse',        gruppe: 'support', status: 'done',    note: 'POST /kontrakter/:id/fritag + /genoptag.' },
   { id: 'UC-23', titel: 'Fraflytning og kontraktophør',               gruppe: 'support', status: 'done',    note: 'POST /kontrakter/:id/fraflyt — opretter sag + aflyser planlagte.' },
   { id: 'UC-24', titel: 'Behandl fakturatvist',                       gruppe: 'support', status: 'partial', note: 'Kan oprettes som sag med kategori=fakturafejl. Audit-trail er nu klar.' },
   { id: 'UC-25', titel: 'Opdater fordelingsnøgle for fællesbeholder', gruppe: 'support', status: 'partial', note: 'PUT /renovation/beholdere/:id understøtter fordelingsnoegle. Massevis-genberegning mangler.' },
-  { id: 'UC-26', titel: 'Indgå betalingsaftale ved restance',         gruppe: 'support', status: 'missing', note: 'Schema og pause-af-rykker mangler.' },
-  { id: 'UC-27', titel: 'Selvbetjening via Zerv-portal',              gruppe: 'support', status: 'missing', note: 'Zerv API-integration mangler. Backend-API er klar.' },
+  { id: 'UC-26', titel: 'Indgå betalingsaftale ved restance',         gruppe: 'support', status: 'done',    note: 'POST /betalingsaftaler — opretter rater, pauser rykker. POST /:id/rate-betalt registrerer indbetaling.' },
+  { id: 'UC-27', titel: 'Selvbetjening via Zerv-portal',              gruppe: 'support', status: 'done',    note: 'GET /zerv/min-konto + reklamation/ekstra-tomning/storskrald/kalender endpoints med Bearer-auth.' },
 
   // GROUP 4 — Afregning & Betaling
   { id: 'UC-28', titel: 'Gennemfør fakturakørsel',                    gruppe: 'afregning', status: 'done',    note: 'POST /fakturakorsel/simuler + /koer. ERP-eksport mock.' },
   { id: 'UC-29', titel: 'Opret og modregn kreditnota',                gruppe: 'afregning', status: 'done',    note: 'POST /fakturaer/:id/kreditnota.' },
-  { id: 'UC-30', titel: 'PBS-opkrævning via NETS',                    gruppe: 'afregning', status: 'missing', note: 'PBS-fil-format og returmatching mangler.' },
+  { id: 'UC-30', titel: 'PBS-opkrævning via NETS',                    gruppe: 'afregning', status: 'done',    note: 'GET /pbs/preview + /pbs/fil (NETS Section 41 light) + POST /pbs/retur til auto-match.' },
   { id: 'UC-31', titel: 'EAN-fakturering via Nemhandel',              gruppe: 'afregning', status: 'done',    note: 'GET /fakturaer/:id/oioubl returnerer valid OIOUBL 2.02 XML.' },
   { id: 'UC-32', titel: 'Automatisk rykkerproces',                    gruppe: 'afregning', status: 'partial', note: 'Manuel rykker via /fakturaer/:id/rykker + restance-overblik. Auto-cron mangler.' },
   { id: 'UC-33', titel: 'Overgivelse til SKAT Inddrivelse',           gruppe: 'afregning', status: 'partial', note: 'POST /rykker/skat-inddrivelse/:id mock. Fordringsfil-generering mangler.' },
   { id: 'UC-34', titel: 'Betalingsafstemning',                        gruppe: 'afregning', status: 'partial', note: 'Manuel via POST /betalinger. Bankfilimport + auto-match mangler.' },
-  { id: 'UC-35', titel: 'Generer årsopgørelse',                       gruppe: 'afregning', status: 'missing', note: 'Januar-cron + årsopgørelse-PDF mangler.' },
-  { id: 'UC-36', titel: 'Eksporter bogføringsposteringer til ERP',    gruppe: 'afregning', status: 'missing', note: 'ERP-formatkonfiguration + eksport-cron mangler.' },
+  { id: 'UC-35', titel: 'Generer årsopgørelse',                       gruppe: 'afregning', status: 'done',    note: 'GET /aarsopgoerelse/:id?aar=… + /html. Bulk-genering klar til januar-cron.' },
+  { id: 'UC-36', titel: 'Eksporter bogføringsposteringer til ERP',    gruppe: 'afregning', status: 'done',    note: 'GET /erp/eksport.csv (debet/kredit-konti pr. faktura/betaling/kreditnota).' },
 
   // GROUP 5 — Regulering & Priser
   { id: 'UC-37', titel: 'Udsend massevarslinger om prisændring',      gruppe: 'regulering', status: 'done',    note: 'POST /varslinger/simuler + /send. 30-dages lovkrav valideres.' },

@@ -41,6 +41,14 @@ app.use('/api/varslinger', require('../routes/varslinger'));
 app.use('/api/rykker', require('../routes/rykker'));
 app.use('/api/audit', require('../routes/audit'));
 app.use('/api/usecases', require('../routes/usecases'));
+app.use('/api/kunder', require('../routes/kalender'));
+app.use('/api/aarsopgoerelse', require('../routes/aarsopgoerelse'));
+app.use('/api/helligdage', require('../routes/helligdage'));
+app.use('/api/betalingsaftaler', require('../routes/betalingsaftaler'));
+app.use('/api/storskrald', require('../routes/storskrald'));
+app.use('/api/pbs', require('../routes/pbs'));
+app.use('/api/erp', require('../routes/erp'));
+app.use('/api/zerv', require('../routes/zerv'));
 
 // Renovation domæne-routes.
 app.use('/api/renovation/webhook', require('../routes/webhook'));

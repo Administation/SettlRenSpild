@@ -60,4 +60,53 @@ router.put('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// UC-13 Beholderbytte — afhent gammel + lever ny. Opretter sag og opdaterer registret.
+router.post('/:id/bytte', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { ny_volumen_l, ny_fraktion_id, ny_frekvens, aarsag, bruger='Support' } = req.body;
+    const beh = (await client.query(`
+      SELECT b.*, k.kunde_id, k.ejendom_id, ku.navn AS kunde_navn, f.navn AS fraktion_navn
+      FROM beholdere b
+      JOIN kontrakter k ON k.id = b.kontrakt_id
+      JOIN kunder ku ON ku.id = k.kunde_id
+      JOIN fraktioner f ON f.id = b.fraktion_id
+      WHERE b.id = $1
+    `, [req.params.id])).rows[0];
+    if (!beh) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Beholder ikke fundet' }); }
+
+    // Opdatér beholderen direkte (i prod ville vi vente på driftssystem-bekræftelse).
+    const sets = []; const params = [];
+    if (ny_volumen_l)   { params.push(ny_volumen_l);   sets.push(`volumen_l = $${params.length}`); }
+    if (ny_fraktion_id) { params.push(ny_fraktion_id); sets.push(`fraktion_id = $${params.length}`); }
+    if (ny_frekvens)    { params.push(ny_frekvens);    sets.push(`frekvens = $${params.length}`); }
+    if (sets.length) {
+      params.push(req.params.id);
+      await client.query(`UPDATE beholdere SET ${sets.join(', ')} WHERE id = $${params.length}`, params);
+    }
+
+    // Opret sag til opfølgning hos driftssystem.
+    const sagId = 'SAG-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    await client.query(
+      `INSERT INTO sager (id, domain, kategori, prioritet, titel, beskrivelse, kunde_id, ejendom_id, kontrakt_id, ansvarlig, sla_frist)
+       VALUES ($1,'renovation','beholderbytte','normal',$2,$3,$4,$5,$6,$7, now() + interval '7 days')`,
+      [sagId,
+       `Beholderbytte ${beh.fraktion_navn} ${beh.volumen_l}L`,
+       `Bytte til ${ny_fraktion_id || beh.fraktion_id} ${ny_volumen_l || beh.volumen_l}L ${ny_frekvens || beh.frekvens}. ${aarsag || ''}`,
+       beh.kunde_id, beh.ejendom_id, beh.kontrakt_id, bruger]
+    );
+    await client.query(
+      `INSERT INTO audit_log (entitet, entitet_id, handling, bruger, detaljer)
+       VALUES ('beholder',$1,'bytte',$2,$3::jsonb)`,
+      [req.params.id, bruger, JSON.stringify({ ny_volumen_l, ny_fraktion_id, ny_frekvens, aarsag, sag_id: sagId })]
+    );
+    await client.query('COMMIT');
+    res.json({ ok: true, sag_id: sagId, mock: 'Beholderbytte-bestilling sendt til driftssystem' });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(e);
+  } finally { client.release(); }
+});
+
 module.exports = router;

@@ -186,6 +186,8 @@ tr.clickable{cursor:pointer;}
     <div class="sidebar-section">🚛 Backend · Drift</div>
     <div class="sidebar-link" data-view="beholdere"><span class="ico">🗑️</span>Beholdere</div>
     <div class="sidebar-link" data-view="tomninger"><span class="ico">📅</span>Tømninger</div>
+    <div class="sidebar-link" data-view="storskrald"><span class="ico">📦</span>Storskrald</div>
+    <div class="sidebar-link" data-view="helligdage"><span class="ico">🎄</span>Helligdage</div>
     <div class="sidebar-link" data-view="webhook"><span class="ico">🔌</span>Webhook-log</div>
 
     <!-- ═══ BACKEND: Afregning & Betaling ═══ -->
@@ -193,11 +195,18 @@ tr.clickable{cursor:pointer;}
     <div class="sidebar-link" data-view="fakturaer"><span class="ico">🧾</span>Fakturaer</div>
     <div class="sidebar-link" data-view="fakturakorsel"><span class="ico">⚡</span>Fakturakørsel</div>
     <div class="sidebar-link" data-view="rykker"><span class="ico">⏰</span>Rykker & restance</div>
+    <div class="sidebar-link" data-view="betalingsaftaler"><span class="ico">🤝</span>Betalingsaftaler</div>
+    <div class="sidebar-link" data-view="pbs"><span class="ico">🏦</span>PBS / NETS</div>
+    <div class="sidebar-link" data-view="erp"><span class="ico">📊</span>ERP-eksport</div>
 
     <!-- ═══ BACKEND: Regulering & Priser ═══ -->
     <div class="sidebar-section">⚖️ Backend · Regulering</div>
     <div class="sidebar-link" data-view="prisblade"><span class="ico">💰</span>Prisblade</div>
     <div class="sidebar-link" data-view="varslinger"><span class="ico">📨</span>Massevarslinger</div>
+
+    <!-- ═══ Selvbetjening ═══ -->
+    <div class="sidebar-section">📱 Selvbetjening</div>
+    <div class="sidebar-link" data-view="zerv"><span class="ico">📱</span>Zerv test-portal</div>
 
     <!-- ═══ Andre services (placeholder) ═══ -->
     <div class="sidebar-section">💧 Andre domæner</div>
@@ -435,6 +444,10 @@ async function showKunde(id, tab) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" onclick="kvikOpretSag('${k.id}')">+ Sag</button>
         <button class="btn btn-primary" onclick="kvikEkstraTomning('${k.id}')">+ Ekstra tømning</button>
+        <button class="btn" onclick="kvikStorskrald('${k.id}')">+ Storskrald</button>
+        <a class="btn" href="/api/kunder/${k.id}/kalender.html" target="_blank">📅 Kalender</a>
+        <a class="btn" href="/api/kunder/${k.id}/kalender.ics">📥 .ics</a>
+        <a class="btn" href="/api/aarsopgoerelse/${k.id}/html?aar=${new Date().getFullYear()}" target="_blank">📄 Årsopgørelse</a>
         <button class="btn" onclick="go('kunder')">← Tilbage</button>
       </div>
     </div>
@@ -761,6 +774,34 @@ window.kvikOpretSag = function(kundeId) {
   });
 };
 
+window.kvikStorskrald = async function(kundeId) {
+  const typer = await api('/storskrald/typer');
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0,10);
+  openModal('Bestil storskrald', `
+    <div class="alert alert-info">Opretter sag med kategori "storskrald" og tidsvindue. Driftssystem-bestilling sendes automatisk.</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Type *</label><select id="ss-type">${typer.map(t => `<option value="${t.id}">${t.navn}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Mængde (m³)</label><input type="number" step="0.5" id="ss-m3" value="2"></div>
+      <div class="form-row"><label>Tidsvindue fra *</label><input type="date" id="ss-fra" value="${tomorrow}"></div>
+      <div class="form-row"><label>Tidsvindue til</label><input type="date" id="ss-til"></div>
+    </div>
+    <div class="form-row"><label>Beskrivelse</label><textarea id="ss-beskr" placeholder="fx 2 sofaer + 1 vaskemaskine"></textarea></div>
+  `, async () => {
+    const r = await api('/storskrald', { method: 'POST', body: JSON.stringify({
+      kunde_id: kundeId,
+      type: document.getElementById('ss-type').value,
+      maengde_m3: document.getElementById('ss-m3').value || null,
+      tidsvindue_fra: document.getElementById('ss-fra').value,
+      tidsvindue_til: document.getElementById('ss-til').value || null,
+      beskrivelse: document.getElementById('ss-beskr').value,
+      bruger: 'Support',
+    }) });
+    closeModal();
+    toast('Storskrald bestilt — sag ' + r.sag_id, 'success');
+    showKunde(kundeId, 'sager');
+  });
+};
+
 window.kvikEkstraTomning = async function(kundeId) {
   const d = await api('/kunder/' + kundeId + '/360');
   if (!d.beholdere.length) return toast('Kunden har ingen beholdere', 'error');
@@ -1047,16 +1088,17 @@ views.beholdere = async () => {
     </div>
     <div class="card" style="padding:0">
       <table>
-        <thead><tr><th>ID</th><th>Fraktion</th><th>Volumen</th><th>Frekvens</th><th>Kunde</th><th>Adresse</th><th>Status</th></tr></thead>
+        <thead><tr><th>ID</th><th>Fraktion</th><th>Volumen</th><th>Frekvens</th><th>Kunde</th><th>Adresse</th><th>Status</th><th></th></tr></thead>
         <tbody>${list.map(b => `
-          <tr class="clickable" onclick="go('kontrakter',{id:'${b.kontrakt_id}'})">
+          <tr>
             <td>${b.id}</td>
             <td><span class="dot" style="background:${b.farve || '#999'}"></span>${b.fraktion_navn}</td>
             <td>${b.volumen_l} L</td>
             <td>${b.frekvens}</td>
-            <td>${b.kunde_navn}</td>
+            <td><a style="color:var(--accent);cursor:pointer" onclick="go('kontrakter',{id:'${b.kontrakt_id}'})">${b.kunde_navn}</a></td>
             <td>${b.vejnavn || ''} ${b.husnr || ''}</td>
             <td>${badge(b.status)}</td>
+            <td><button class="btn btn-sm" onclick="bytteBeholder('${b.id}','${b.fraktion_id}','${b.volumen_l}','${b.frekvens}')">Bytte</button></td>
           </tr>`).join('')}</tbody>
       </table>
     </div>
@@ -1091,6 +1133,30 @@ views.tomninger = async () => {
     </div>
   `;
   window._beholdere = beh;
+};
+
+window.bytteBeholder = async function(beholderId, nuvFraktion, nuvVolumen, nuvFrekvens) {
+  const fraktioner = await api('/renovation/fraktioner');
+  openModal('Beholderbytte', `
+    <div class="alert alert-info">Bytter beholderen til en ny type/volumen/frekvens. Opretter sag til driftssystem-bestilling.</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Ny fraktion</label><select id="bb-frak">${fraktioner.map(f => `<option value="${f.id}" ${f.id===nuvFraktion?'selected':''}>${f.navn}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Ny volumen (L)</label><select id="bb-vol">${[140,180,240,400,660,1100,4000].map(v => `<option value="${v}" ${String(v)===nuvVolumen?'selected':''}>${v} L</option>`).join('')}</select></div>
+      <div class="form-row"><label>Ny frekvens</label><select id="bb-frek"><option value="7d" ${nuvFrekvens==='7d'?'selected':''}>Ugentlig</option><option value="14d" ${nuvFrekvens==='14d'?'selected':''}>14-dages</option><option value="28d" ${nuvFrekvens==='28d'?'selected':''}>4-ugers</option></select></div>
+      <div class="form-row"><label>Årsag</label><input id="bb-aar" placeholder="fx Beholder beskadiget"></div>
+    </div>
+  `, async () => {
+    const r = await api(`/renovation/beholdere/${beholderId}/bytte`, { method: 'POST', body: JSON.stringify({
+      ny_fraktion_id: document.getElementById('bb-frak').value,
+      ny_volumen_l: parseInt(document.getElementById('bb-vol').value, 10),
+      ny_frekvens: document.getElementById('bb-frek').value,
+      aarsag: document.getElementById('bb-aar').value,
+      bruger: 'Support',
+    }) });
+    closeModal();
+    toast('Beholderbytte bestilt — sag ' + r.sag_id, 'success');
+    go('beholdere');
+  });
 };
 
 window.newTomning = function() {
@@ -1204,6 +1270,7 @@ async function showFaktura(id) {
         ${(f.status === 'sendt' || f.status === 'forfalden') ? `<button class="btn btn-success" onclick="registrerBetaling('${f.id}','${f.belob_incl - f.betalt_belob}')">Registrér betaling</button>` : ''}
         ${(f.status !== 'kladde' && f.status !== 'krediteret') ? `<button class="btn" onclick="opretKreditnota('${f.id}','${f.belob_incl}')">Kreditnota</button>` : ''}
         ${(f.status === 'sendt' || f.status === 'forfalden' || f.status === 'rykker') ? `<button class="btn" onclick="sendRykker('${f.id}')">Send rykker</button>` : ''}
+        ${(f.status === 'sendt' || f.status === 'forfalden' || f.status === 'rykker') && Number(f.belob_incl) - Number(f.betalt_belob) > 0 ? `<button class="btn" onclick="opretBetalingsaftale('${f.id}','${Number(f.belob_incl) - Number(f.betalt_belob)}')">Betalingsaftale</button>` : ''}
         <button class="btn" onclick="go('fakturaer')">← Tilbage</button>
       </div>
     </div>
@@ -1264,6 +1331,27 @@ window.sendFaktura = async function(id) {
   toast('Sendt via ' + r.mock.kanal, 'success');
   go('fakturaer', { id });
 };
+window.opretBetalingsaftale = function(fakturaId, restbelob) {
+  const om14 = new Date(Date.now() + 14*86400000).toISOString().slice(0,10);
+  openModal('Opret betalingsaftale', `
+    <div class="alert alert-info">Restbeløb: <strong>${fmtDKK(restbelob)} kr.</strong>. Rykker pauses så længe rater overholdes.</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Antal rater *</label><select id="ba-n"><option>2</option><option selected>3</option><option>4</option><option>6</option><option>12</option></select></div>
+      <div class="form-row"><label>Første ratedato *</label><input type="date" id="ba-dato" value="${om14}"></div>
+    </div>
+  `, async () => {
+    const r = await api('/betalingsaftaler', { method: 'POST', body: JSON.stringify({
+      faktura_id: fakturaId,
+      antal_rater: parseInt(document.getElementById('ba-n').value, 10),
+      foerste_dato: document.getElementById('ba-dato').value,
+      bruger: 'Support',
+    }) });
+    closeModal();
+    toast(`Betalingsaftale ${r.id} oprettet — ${r.antal_rater} rater`, 'success');
+    go('fakturaer', { id: fakturaId });
+  });
+};
+
 window.opretKreditnota = function(fakturaId, maxBelob) {
   openModal('Opret kreditnota', `
     <div class="alert alert-warn">Modposterer fakturaen helt eller delvist. Stort beløb kan kræve ledergodkendelse i prod.</div>
@@ -2035,6 +2123,294 @@ window.newVarsling = async function() {
     const r = await api('/varslinger/simuler', { method: 'POST', body: JSON.stringify({ kommune_id: document.getElementById('vs-kom').value }) });
     document.getElementById('vs-result').innerHTML = `<div class="alert alert-info">Vil ramme <strong>${r.antal} kunder</strong> i kommunen.</div>`;
   };
+};
+
+// ── HELLIGDAGE (UC-16) ──
+views.helligdage = async () => {
+  const aar = new Date().getFullYear();
+  const list = await api('/helligdage?aar=' + aar);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Helligdage ${aar}</div><div class="page-sub">Kommuner kan tilføje lokale helligdage. Tømninger på helligdage flyttes til næste hverdag.</div></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="newHelligdag()">+ Tilføj</button><button class="btn" onclick="justérPlaner()">Justér tømningsplaner</button></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th>Navn</th><th>Kommune</th><th>Forskydes til</th><th></th></tr></thead>
+        <tbody>${list.length ? list.map(h => `<tr>
+          <td><strong>${fmtDate(h.dato)}</strong> <span style="color:var(--muted);font-size:11px">${new Date(h.dato).toLocaleDateString('da-DK',{weekday:'long'})}</span></td>
+          <td>${h.navn}</td>
+          <td>${h.kommune_id || '<span style="color:var(--muted)">national</span>'}</td>
+          <td>${h.forskyder_til ? fmtDate(h.forskyder_til) : '<span style="color:var(--muted)">næste hverdag</span>'}</td>
+          <td><button class="btn btn-sm" onclick="slet${''}Helligdag(${h.id})">Slet</button></td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty">Ingen helligdage registreret</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+window.sletHelligdag = async function(id) {
+  if (!confirm('Slet helligdagen?')) return;
+  await api('/helligdage/' + id, { method: 'DELETE' });
+  go('helligdage');
+};
+window.newHelligdag = function() {
+  openModal('Tilføj helligdag', `
+    <div class="form-grid">
+      <div class="form-row"><label>Dato *</label><input type="date" id="h-dato"></div>
+      <div class="form-row"><label>Navn *</label><input id="h-navn" placeholder="fx Grundlovsdag (lokal)"></div>
+      <div class="form-row"><label>Kommune (valgfrit)</label><input id="h-kom" placeholder="holstebro / herning / ..."></div>
+      <div class="form-row"><label>Forskydes til</label><input type="date" id="h-til" placeholder="Hvis tom: næste hverdag"></div>
+    </div>
+  `, async () => {
+    await api('/helligdage', { method: 'POST', body: JSON.stringify({
+      dato: document.getElementById('h-dato').value,
+      navn: document.getElementById('h-navn').value,
+      kommune_id: document.getElementById('h-kom').value || null,
+      forskyder_til: document.getElementById('h-til').value || null,
+    }) });
+    closeModal();
+    toast('Helligdag tilføjet', 'success');
+    go('helligdage');
+  });
+};
+window.justérPlaner = async function() {
+  if (!confirm('Justér alle planlagte tømninger der falder på helligdage?')) return;
+  const r = await api('/helligdage/justér-planer', { method: 'POST', body: '{}' });
+  toast(`${r.flyttet} tømninger flyttet`, 'success');
+};
+
+// ── STORSKRALD (UC-20) ──
+views.storskrald = async () => {
+  const list = await api('/storskrald');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Storskrald</div><div class="page-sub">${list.length} bestillinger</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Sag</th><th>Kunde</th><th>Type</th><th>Tidsvindue</th><th>Status</th><th>Oprettet</th></tr></thead>
+        <tbody>${list.length ? list.map(s => `<tr class="clickable" onclick="go('sager',{id:'${s.id}'})">
+          <td>${s.id}</td>
+          <td>${s.kunde_navn || '—'}</td>
+          <td>${s.titel}</td>
+          <td>${s.sla_frist ? fmtDate(s.sla_frist) : '—'}</td>
+          <td>${badge(s.status)}</td>
+          <td>${fmtDate(s.oprettet)}</td>
+        </tr>`).join('') : '<tr><td colspan="6" class="empty">Ingen storskraldsbestillinger</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+// ── BETALINGSAFTALER (UC-26) ──
+views.betalingsaftaler = async () => {
+  const list = await api('/betalingsaftaler');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Betalingsaftaler</div><div class="page-sub">${list.length} aftaler · pauser rykker så længe rater overholdes</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Kunde</th><th>Faktura</th><th style="text-align:right">Total</th><th>Rater</th><th>Status</th><th>Oprettet</th></tr></thead>
+        <tbody>${list.length ? list.map(b => {
+          const betalte = b.rater.filter(r => r.status === 'betalt').length;
+          return `<tr>
+            <td>${b.id}</td>
+            <td>${b.kunde_navn}</td>
+            <td>${b.fakturanr}</td>
+            <td style="text-align:right">${fmtDKK(b.total_belob)} kr.</td>
+            <td>${betalte} / ${b.antal_rater}</td>
+            <td>${badge(b.status === 'gennemfoert' ? 'green' : b.status === 'misligholdt' ? 'red' : 'blue', b.status)}</td>
+            <td>${fmtDate(b.oprettet)}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="7" class="empty">Ingen betalingsaftaler. Opret én fra en faktura-detalje.</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+// ── PBS/NETS (UC-30) ──
+views.pbs = async () => {
+  const today = new Date().toISOString().slice(0,10);
+  const om30 = new Date(Date.now() + 30*86400000).toISOString().slice(0,10);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">PBS / NETS</div><div class="page-sub">Generér opkrævningsfil til Betalingsservice for tilmeldte kunder</div></div>
+    </div>
+    <div class="alert alert-info">Bemærk: kun kunder med <code>pbs_aktiv = true</code> og fakturaer i status <em>godkendt/sendt</em> medtages.</div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-row"><label>Forfaldsdato fra</label><input type="date" id="pbs-fra" value="${today}"></div>
+        <div class="form-row"><label>Forfaldsdato til</label><input type="date" id="pbs-til" value="${om30}"></div>
+        <div class="form-row" style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" id="pbs-prev">1. Preview</button>
+          <a class="btn btn-success" id="pbs-dl" style="display:none">2. Download fil</a>
+        </div>
+      </div>
+    </div>
+    <div id="pbs-result"></div>
+  `;
+  document.getElementById('pbs-prev').onclick = async () => {
+    const fra = document.getElementById('pbs-fra').value;
+    const til = document.getElementById('pbs-til').value;
+    const r = await api(`/pbs/preview?forfaldsdato_fra=${fra}&forfaldsdato_til=${til}`);
+    document.getElementById('pbs-result').innerHTML = `
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin:18px 0">
+        <div class="card"><div class="card-title">Tilmeldte fakturaer</div><div class="card-value">${r.antal}</div></div>
+        <div class="card"><div class="card-title">Total opkrævning</div><div class="card-value">${fmtDKK(r.total)} kr.</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        <table><thead><tr><th>Faktura</th><th>Kunde</th><th>PBS-nr</th><th>Forfald</th><th style="text-align:right">Beløb</th></tr></thead>
+        <tbody>${r.rows.length ? r.rows.map(x => `<tr>
+          <td>${x.fakturanr}</td><td>${x.kunde_navn}</td><td>${x.pbs_pbsnr || '—'}</td>
+          <td>${fmtDate(x.forfaldsdato)}</td><td style="text-align:right">${fmtDKK(Number(x.belob_incl) - Number(x.betalt_belob))} kr.</td>
+        </tr>`).join('') : '<tr><td colspan="5" class="empty">Ingen PBS-tilmeldte fakturaer i perioden</td></tr>'}</tbody></table>
+      </div>
+    `;
+    const dl = document.getElementById('pbs-dl');
+    dl.style.display = r.antal > 0 ? 'inline-flex' : 'none';
+    dl.href = `/api/pbs/fil?forfaldsdato_fra=${fra}&forfaldsdato_til=${til}`;
+  };
+};
+
+// ── ERP-EKSPORT (UC-36) ──
+views.erp = async () => {
+  const today = new Date();
+  const fra = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0,10);
+  const til = today.toISOString().slice(0,10);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">ERP-eksport</div><div class="page-sub">Bogføringsposteringer som CSV til ØS Indsigt, Navision, Dynamics e.l.</div></div>
+    </div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-row"><label>Periode fra</label><input type="date" id="erp-fra" value="${fra}"></div>
+        <div class="form-row"><label>Periode til</label><input type="date" id="erp-til" value="${til}"></div>
+        <div class="form-row" style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" id="erp-prev">1. Preview</button>
+          <a class="btn btn-success" id="erp-dl" style="display:none">2. Download CSV</a>
+        </div>
+      </div>
+    </div>
+    <div id="erp-result"></div>
+  `;
+  document.getElementById('erp-prev').onclick = async () => {
+    const fra = document.getElementById('erp-fra').value;
+    const til = document.getElementById('erp-til').value;
+    const r = await api(`/erp/preview?fra=${fra}&til=${til}`);
+    document.getElementById('erp-result').innerHTML = `
+      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin:18px 0">
+        <div class="card"><div class="card-title">Fakturaer</div><div class="card-value">${r.fakturaer}</div></div>
+        <div class="card"><div class="card-title">Betalinger</div><div class="card-value">${r.betalinger}</div></div>
+        <div class="card"><div class="card-title">Kreditnotaer</div><div class="card-value">${r.kreditnotaer}</div></div>
+        <div class="card"><div class="card-title">Total debet</div><div class="card-value">${fmtDKK(r.total_debet)} kr.</div></div>
+        <div class="card"><div class="card-title">Total kredit</div><div class="card-value">${fmtDKK(r.total_kredit)} kr.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Anvendte konti</div>
+        <table><tbody>
+          <tr><td>${r.konti.debitor}</td><td>Debitorer</td></tr>
+          <tr><td>${r.konti.omsaetning}</td><td>Omsætning, renovation</td></tr>
+          <tr><td>${r.konti.moms}</td><td>Salgsmoms</td></tr>
+          <tr><td>${r.konti.bank}</td><td>Bank</td></tr>
+          <tr><td>${r.konti.kreditnota}</td><td>Kreditnotaer</td></tr>
+        </tbody></table>
+      </div>
+    `;
+    const dl = document.getElementById('erp-dl');
+    dl.style.display = r.fakturaer + r.betalinger + r.kreditnotaer > 0 ? 'inline-flex' : 'none';
+    dl.href = `/api/erp/eksport.csv?fra=${fra}&til=${til}`;
+  };
+};
+
+// ── ZERV TEST-PORTAL (UC-27) ──
+views.zerv = async (params) => {
+  // Brug enten valgt kunde eller den første demo-kunde.
+  const kunder = (await api('/kunder?limit=10')).rows;
+  const kundeId = params.kunde || (kunder[0] && kunder[0].id);
+  if (!kundeId) {
+    main.innerHTML = '<div class="empty">Ingen kunder fundet</div>'; return;
+  }
+  // Kald zerv-API'en med kunde-id som mock Bearer-token.
+  const minKonto = await fetch('/api/zerv/min-konto', { headers: { Authorization: 'Bearer ' + kundeId } }).then(r => r.json());
+  const kalender = await fetch('/api/zerv/kalender', { headers: { Authorization: 'Bearer ' + kundeId } }).then(r => r.json());
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Zerv selvbetjenings-portal</div><div class="page-sub">Test-visning af kunde-API · Bearer-token = kunde-ID</div></div>
+      <select id="zv-pick" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit">
+        ${kunder.map(k => `<option value="${k.id}" ${k.id===kundeId?'selected':''}>${k.navn} (${k.id})</option>`).join('')}
+      </select>
+    </div>
+    <div class="alert alert-info">Disse endpoints kalder Zerv-portalen på vegne af en logget-ind kunde. Endpoints: <code>/api/zerv/min-konto · /kalender · /reklamation · /ekstra-tomning · /storskrald · /kalender.ics</code></div>
+    <div class="split">
+      <div class="card">
+        <div class="card-title">${minKonto.kunde?.navn || 'Min konto'}</div>
+        <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value">${minKonto.kunde?.type || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Kontrakter</div><div class="detail-value">${minKonto.kontrakter?.length || 0}</div></div>
+        <div class="detail-row"><div class="detail-label">Beholdere</div><div class="detail-value">${minKonto.beholdere?.length || 0}</div></div>
+        <div class="detail-row"><div class="detail-label">Fakturaer</div><div class="detail-value">${minKonto.fakturaer?.length || 0}</div></div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="zervReklamation('${kundeId}')">Indberet reklamation</button>
+          <button class="btn" onclick="zervEkstra('${kundeId}')">Bestil ekstra tømning</button>
+          <button class="btn" onclick="zervStorskrald('${kundeId}')">Bestil storskrald</button>
+          <a class="btn" href="/api/zerv/kalender.ics" target="_blank">Download .ics</a>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Næste tømninger</div>
+        ${kalender.length ? kalender.slice(0,10).map(t => `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <span class="dot" style="background:${t.farve||'#999'}"></span>
+          <strong>${fmtDate(t.planlagt_dato)}</strong> — ${t.fraktion_navn} ${t.volumen_l}L
+        </div>`).join('') : '<div class="empty">Ingen planlagte tømninger</div>'}
+      </div>
+    </div>
+  `;
+  document.getElementById('zv-pick').onchange = (e) => go('zerv', { kunde: e.target.value });
+};
+window.zervReklamation = function(kundeId) {
+  openModal('Indberet reklamation (Zerv-flow)', `
+    <div class="form-row"><label>Kategori</label><select id="zr-kat"><option value="manglende_tomning">Manglende tømning</option><option value="beholder_skadet">Beholder skadet</option><option value="forkert_indhold">Forkert indhold</option></select></div>
+    <div class="form-row"><label>Titel *</label><input id="zr-titel"></div>
+    <div class="form-row"><label>Beskrivelse</label><textarea id="zr-beskr"></textarea></div>
+  `, async () => {
+    const r = await fetch('/api/zerv/reklamation', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + kundeId },
+      body: JSON.stringify({ kategori: document.getElementById('zr-kat').value, titel: document.getElementById('zr-titel').value, beskrivelse: document.getElementById('zr-beskr').value }),
+    }).then(r => r.json());
+    closeModal();
+    toast('Sag oprettet via Zerv: ' + r.sag_id, 'success');
+  });
+};
+window.zervEkstra = async function(kundeId) {
+  const k = await fetch('/api/zerv/min-konto', { headers: { Authorization: 'Bearer ' + kundeId } }).then(r => r.json());
+  if (!k.beholdere?.length) return toast('Ingen beholdere', 'error');
+  openModal('Bestil ekstra tømning (Zerv-flow)', `
+    <div class="form-row"><label>Beholder *</label><select id="ze-beh">${k.beholdere.map(b => `<option value="${b.id}">${b.fraktion_navn} ${b.volumen_l}L</option>`).join('')}</select></div>
+    <div class="form-row"><label>Ønsket dato *</label><input type="date" id="ze-dato" value="${new Date(Date.now()+86400000).toISOString().slice(0,10)}"></div>
+  `, async () => {
+    const r = await fetch('/api/zerv/ekstra-tomning', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + kundeId },
+      body: JSON.stringify({ beholder_id: document.getElementById('ze-beh').value, dato: document.getElementById('ze-dato').value }),
+    }).then(r => r.json());
+    closeModal();
+    toast('Bestilt via Zerv: ' + r.sag_id, 'success');
+  });
+};
+window.zervStorskrald = function(kundeId) {
+  openModal('Bestil storskrald (Zerv-flow)', `
+    <div class="form-row"><label>Type</label><select id="zs-type"><option value="mobler">Møbler</option><option value="hvidevarer">Hårde hvidevarer</option><option value="elektronik">Elektronik</option><option value="byggeaffald">Byggeaffald</option></select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Mængde (m³)</label><input type="number" step="0.5" id="zs-m" value="2"></div>
+      <div class="form-row"><label>Tidsvindue fra *</label><input type="date" id="zs-dato" value="${new Date(Date.now()+86400000).toISOString().slice(0,10)}"></div>
+    </div>
+  `, async () => {
+    const r = await fetch('/api/zerv/storskrald', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + kundeId },
+      body: JSON.stringify({ type: document.getElementById('zs-type').value, maengde_m3: document.getElementById('zs-m').value, tidsvindue_fra: document.getElementById('zs-dato').value }),
+    }).then(r => r.json());
+    closeModal();
+    toast('Bestilt via Zerv: ' + r.sag_id, 'success');
+  });
 };
 
 // ── KOMMUNER (simpel liste) ──
