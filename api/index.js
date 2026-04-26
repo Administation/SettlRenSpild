@@ -36,6 +36,11 @@ app.use('/api/fakturaer', require('../routes/fakturaer'));
 app.use('/api/betalinger', require('../routes/betalinger'));
 app.use('/api/sager', require('../routes/sager'));
 app.use('/api/dashboard', require('../routes/dashboard'));
+app.use('/api/fakturakorsel', require('../routes/fakturakorsel'));
+app.use('/api/varslinger', require('../routes/varslinger'));
+app.use('/api/rykker', require('../routes/rykker'));
+app.use('/api/audit', require('../routes/audit'));
+app.use('/api/usecases', require('../routes/usecases'));
 
 // Renovation domæne-routes.
 app.use('/api/renovation/webhook', require('../routes/webhook'));

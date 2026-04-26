@@ -85,4 +85,102 @@ router.put('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// UC-22 Sæsonophør / midlertidig fritagelse — sætter kontrakten til 'fritaget'
+// med start/slut og pauser tømningsplanen for perioden.
+router.post('/:id/fritag', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { fra, til, aarsag, bruger='Support' } = req.body;
+    if (!fra || !til) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'fra og til påkrævet' });
+    }
+    await client.query(
+      `UPDATE kontrakter SET status = 'fritaget', fritaget_aarsag = $1 WHERE id = $2`,
+      [aarsag || `Sæsonophør ${fra} – ${til}`, req.params.id]
+    );
+    // Aflys planlagte tømninger i perioden.
+    const aflyst = await client.query(
+      `UPDATE tomningsplaner SET status = 'aflyst'
+       FROM beholdere b
+       WHERE tomningsplaner.beholder_id = b.id
+         AND b.kontrakt_id = $1
+         AND tomningsplaner.planlagt_dato BETWEEN $2 AND $3
+         AND tomningsplaner.status = 'planlagt'`,
+      [req.params.id, fra, til]
+    );
+    await client.query(
+      `INSERT INTO audit_log (entitet, entitet_id, handling, bruger, detaljer)
+       VALUES ('kontrakt',$1,'fritaget',$2,$3::jsonb)`,
+      [req.params.id, bruger, JSON.stringify({ fra, til, aarsag, aflyste_tomninger: aflyst.rowCount })]
+    );
+    await client.query('COMMIT');
+    res.json({ ok: true, aflyste_tomninger: aflyst.rowCount });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(e);
+  } finally { client.release(); }
+});
+
+// Genoptag fritaget kontrakt.
+router.post('/:id/genoptag', async (req, res, next) => {
+  try {
+    await pool.query(`UPDATE kontrakter SET status = 'aktiv', fritaget_aarsag = NULL WHERE id = $1`, [req.params.id]);
+    await pool.query(
+      `INSERT INTO audit_log (entitet, entitet_id, handling, bruger) VALUES ('kontrakt',$1,'genoptaget',$2)`,
+      [req.params.id, req.body?.bruger || 'Support']
+    );
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// UC-23 Fraflytning + slutopgørelse — lukker kontrakt og foreslår en sidste faktura.
+router.post('/:id/fraflyt', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { fraflytningsdato, ny_ejer_kunde_id, bruger='Support' } = req.body;
+    if (!fraflytningsdato) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'fraflytningsdato påkrævet' });
+    }
+    await client.query(
+      `UPDATE kontrakter SET status = 'opsagt', slut_dato = $1 WHERE id = $2`,
+      [fraflytningsdato, req.params.id]
+    );
+    // Aflys alle fremtidige planlagte tømninger.
+    const aflyst = await client.query(
+      `UPDATE tomningsplaner SET status = 'aflyst'
+       FROM beholdere b
+       WHERE tomningsplaner.beholder_id = b.id
+         AND b.kontrakt_id = $1
+         AND tomningsplaner.planlagt_dato > $2
+         AND tomningsplaner.status = 'planlagt'`,
+      [req.params.id, fraflytningsdato]
+    );
+    // Sag til opfølgning: beholderafhentning hos vognmand.
+    const sagId = 'SAG-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    await client.query(
+      `INSERT INTO sager (id, domain, kategori, prioritet, titel, beskrivelse, kontrakt_id, ansvarlig, sla_frist)
+       VALUES ($1,'renovation','fraflytning','normal',
+               $2,$3,$4,$5, now() + interval '7 days')`,
+      [sagId,
+       `Fraflytning ${fraflytningsdato} — beholderafhentning`,
+       `Kunde fraflytter ${fraflytningsdato}. ${ny_ejer_kunde_id?'Ny ejer: '+ny_ejer_kunde_id:'Ingen ny ejer endnu.'} Beholdere skal afhentes (eller overdrages).`,
+       req.params.id, bruger]
+    );
+    await client.query(
+      `INSERT INTO audit_log (entitet, entitet_id, handling, bruger, detaljer)
+       VALUES ('kontrakt',$1,'fraflyttet',$2,$3::jsonb)`,
+      [req.params.id, bruger, JSON.stringify({ fraflytningsdato, ny_ejer_kunde_id, aflyste_tomninger: aflyst.rowCount, sag_id: sagId })]
+    );
+    await client.query('COMMIT');
+    res.json({ ok: true, sag_id: sagId, aflyste_tomninger: aflyst.rowCount });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(e);
+  } finally { client.release(); }
+});
+
 module.exports = router;

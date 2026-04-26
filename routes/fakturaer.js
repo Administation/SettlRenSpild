@@ -255,6 +255,56 @@ router.post('/generer', async (req, res, next) => {
   }
 });
 
+// UC-29 Opret kreditnota — modposterer en faktura helt eller delvist.
+router.post('/:id/kreditnota', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { belob, aarsag, bruger='Support' } = req.body;
+    if (!belob) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'belob påkrævet' }); }
+    const f = (await client.query(`SELECT * FROM fakturaer WHERE id = $1 FOR UPDATE`, [req.params.id])).rows[0];
+    if (!f) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Faktura ikke fundet' }); }
+    const knId = 'KN-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    await client.query(
+      `INSERT INTO kreditnotaer (id, faktura_id, belob, aarsag, oprettet_af)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [knId, req.params.id, belob, aarsag, bruger]
+    );
+    // Hel kreditering: marker fakturaen som krediteret.
+    if (Number(belob) >= Number(f.belob_incl) - 0.01) {
+      await client.query(`UPDATE fakturaer SET status = 'krediteret' WHERE id = $1`, [req.params.id]);
+    }
+    await client.query(
+      `INSERT INTO audit_log (entitet, entitet_id, handling, bruger, detaljer)
+       VALUES ('faktura',$1,'krediteret',$2,$3::jsonb)`,
+      [req.params.id, bruger, JSON.stringify({ kreditnota_id: knId, belob, aarsag })]
+    );
+    await client.query('COMMIT');
+    res.status(201).json({ ok: true, id: knId, belob, aarsag });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(e);
+  } finally { client.release(); }
+});
+
+// UC-32 Manuel rykker — sender én rykker (1 eller 2) på en forfalden faktura.
+router.post('/:id/rykker', async (req, res, next) => {
+  try {
+    const f = await one(`SELECT * FROM fakturaer WHERE id = $1`, [req.params.id]);
+    if (!f) return res.status(404).json({ error: 'Faktura ikke fundet' });
+    const niveau = req.body?.niveau || (f.status === 'rykker' ? 2 : 1);
+    const gebyr = niveau === 2 ? 100 : 0; // Renteloven: max 100 kr per rykker.
+    const nyStatus = niveau === 2 ? 'rykker' : 'rykker';
+    await pool.query(`UPDATE fakturaer SET status = $1 WHERE id = $2`, [nyStatus, req.params.id]);
+    await pool.query(
+      `INSERT INTO audit_log (entitet, entitet_id, handling, bruger, detaljer)
+       VALUES ('faktura',$1,'rykker',$2,$3::jsonb)`,
+      [req.params.id, req.body?.bruger || 'System', JSON.stringify({ niveau, gebyr, mock_kanal: f.faktura_kanal })]
+    );
+    res.json({ ok: true, niveau, gebyr, mock: { afsendt_via: f.faktura_kanal, tidspunkt: new Date().toISOString() } });
+  } catch (e) { next(e); }
+});
+
 router.post('/:id/godkend', async (req, res, next) => {
   try {
     await pool.query(`UPDATE fakturaer SET status = 'godkendt' WHERE id = $1 AND status = 'kladde'`, [req.params.id]);
