@@ -155,73 +155,21 @@ tr.clickable{cursor:pointer;}
     </div>
     <div id="search-dropdown" class="search-dropdown"></div>
   </div>
-  <div class="topbar-user">
-    <span id="user-name">Driftskoordinator</span>
-    <div class="avatar">DK</div>
+  <div class="topbar-user" style="position:relative">
+    <div id="user-picker" style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface)">
+      <div id="user-info" style="text-align:right;line-height:1.2">
+        <div id="user-name" style="font-size:13px;font-weight:500;color:var(--text)">—</div>
+        <div id="user-role" style="font-size:11px;color:var(--muted)">—</div>
+      </div>
+      <div class="avatar" id="user-avatar" style="background:var(--accent)">—</div>
+      <span style="font-size:10px;color:var(--muted)">▾</span>
+    </div>
+    <div id="user-dropdown" style="position:absolute;top:calc(100% + 6px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;z-index:300;box-shadow:0 12px 36px rgba(0,0,0,.14);display:none;min-width:300px"></div>
   </div>
 </div>
 
 <div class="layout">
-  <nav class="sidebar">
-
-    <!-- ═══ OVERBLIK ═══ -->
-    <div class="sidebar-section">📊 Overblik</div>
-    <div class="sidebar-link" data-view="dashboard"><span class="ico">🏠</span>Dashboard</div>
-    <div class="sidebar-link" data-view="kundeservice-stats"><span class="ico">🛟</span>Kundeservice-stats</div>
-    <div class="sidebar-link" data-view="miljo-stats"><span class="ico">🌍</span>Miljø-dashboard</div>
-    <div class="sidebar-link" data-view="hvile"><span class="ico">⚖️</span>Hvile-i-sig-selv</div>
-    <div class="sidebar-link" data-view="ads"><span class="ico">📤</span>ADS-indberetning</div>
-    <div class="sidebar-link" data-view="audit"><span class="ico">🔒</span>Audit-trail</div>
-    <div class="sidebar-link" data-view="gdpr-politik"><span class="ico">🛡️</span>GDPR-politik</div>
-    <div class="sidebar-link" data-view="usecases"><span class="ico">🗂️</span>Use cases <span id="sidebar-uc" class="count"></span></div>
-
-    <!-- ═══ KUNDESERVICE ═══ -->
-    <div class="sidebar-section">🛟 Kundeservice</div>
-    <div class="sidebar-link" data-view="kunder"><span class="ico">👥</span>Kunder</div>
-    <div class="sidebar-link" data-view="sager"><span class="ico">📞</span>Sager <span id="sidebar-sager" class="count"></span></div>
-    <div class="sidebar-link" data-view="boligadm"><span class="ico">🏘</span>Boligadministratorer</div>
-    <div class="sidebar-link" data-view="brevskabeloner"><span class="ico">✉️</span>Brevskabeloner</div>
-
-    <!-- ═══ BACKEND: Stamdata ═══ -->
-    <div class="sidebar-section">🗃️ Backend · Stamdata</div>
-    <div class="sidebar-link" data-view="ejendomme"><span class="ico">🏠</span>Ejendomme</div>
-    <div class="sidebar-link" data-view="kontrakter"><span class="ico">📋</span>Kontrakter</div>
-    <div class="sidebar-link" data-view="kommuner"><span class="ico">🏛️</span>Kommuner</div>
-
-    <!-- ═══ BACKEND: Drift ═══ -->
-    <div class="sidebar-section">🚛 Backend · Drift</div>
-    <div class="sidebar-link" data-view="beholdere"><span class="ico">🗑️</span>Beholdere</div>
-    <div class="sidebar-link" data-view="tomninger"><span class="ico">📅</span>Tømninger</div>
-    <div class="sidebar-link" data-view="storskrald"><span class="ico">📦</span>Storskrald</div>
-    <div class="sidebar-link" data-view="genbrugsplads"><span class="ico">♻️</span>Genbrugsplads</div>
-    <div class="sidebar-link" data-view="helligdage"><span class="ico">🎄</span>Helligdage</div>
-    <div class="sidebar-link" data-view="webhook"><span class="ico">🔌</span>Webhook-log</div>
-
-    <!-- ═══ BACKEND: Afregning & Betaling ═══ -->
-    <div class="sidebar-section">💶 Backend · Afregning</div>
-    <div class="sidebar-link" data-view="fakturaer"><span class="ico">🧾</span>Fakturaer</div>
-    <div class="sidebar-link" data-view="fakturakorsel"><span class="ico">⚡</span>Fakturakørsel</div>
-    <div class="sidebar-link" data-view="rykker"><span class="ico">⏰</span>Rykker & restance</div>
-    <div class="sidebar-link" data-view="betalingsaftaler"><span class="ico">🤝</span>Betalingsaftaler</div>
-    <div class="sidebar-link" data-view="pbs"><span class="ico">🏦</span>PBS / NETS</div>
-    <div class="sidebar-link" data-view="bankfil"><span class="ico">🏧</span>Bankfilimport</div>
-    <div class="sidebar-link" data-view="kommunal"><span class="ico">🏛️</span>Kommunal opkrævning</div>
-    <div class="sidebar-link" data-view="erp"><span class="ico">📊</span>ERP-eksport</div>
-
-    <!-- ═══ BACKEND: Regulering & Priser ═══ -->
-    <div class="sidebar-section">⚖️ Backend · Regulering</div>
-    <div class="sidebar-link" data-view="prisblade"><span class="ico">💰</span>Prisblade</div>
-    <div class="sidebar-link" data-view="varslinger"><span class="ico">📨</span>Massevarslinger</div>
-
-    <!-- ═══ Selvbetjening ═══ -->
-    <div class="sidebar-section">📱 Selvbetjening</div>
-    <div class="sidebar-link" data-view="zerv"><span class="ico">📱</span>Zerv test-portal</div>
-    <div class="sidebar-link" data-view="sortering"><span class="ico">♻️</span>Sorteringsguide</div>
-
-    <!-- ═══ Andre services (placeholder) ═══ -->
-    <div class="sidebar-section">💧 Andre domæner</div>
-    <div class="sidebar-link" style="opacity:.5;cursor:not-allowed" title="Kommer i næste fase"><span class="ico">💧</span>Spildevand</div>
-  </nav>
+  <nav class="sidebar" id="sidebar"><!-- udfyldes dynamisk per rolle --></nav>
 
   <main class="main" id="main">
     <div class="empty"><div class="spinner"></div> Indlæser…</div>
@@ -264,25 +212,250 @@ function toast(msg, type = 'info') {
 
 const main = document.getElementById('main');
 
-// ── Routing via sidebar ──
+// ─────────────────────────────────────────────────────────────────────
+// ROLLER & PERSONAS — menuen tilpasses den valgte brugers rolle.
+// 5 personas til simulering. Valg gemmes i localStorage så det overlever reload.
+// ─────────────────────────────────────────────────────────────────────
+const BRUGERE = [
+  { id: 'anna',     navn: 'Anna Andersen',     initialer: 'AA', farve: '#2563eb', rolle: 'driftskoordinator' },
+  { id: 'bo',       navn: 'Bo Bertelsen',      initialer: 'BB', farve: '#059669', rolle: 'afregningsansvarlig' },
+  { id: 'camilla',  navn: 'Camilla Christensen', initialer: 'CC', farve: '#d97706', rolle: 'kundesupport' },
+  { id: 'david',    navn: 'David Dahl',        initialer: 'DD', farve: '#7c3aed', rolle: 'leder' },
+  { id: 'borger-1', navn: 'Anders Madsen (borger)', initialer: 'AM', farve: '#ef4444', rolle: 'borger', kunde_id: 'KU-DEMO01' },
+];
+
+const ROLLER = {
+  driftskoordinator: {
+    titel: 'Driftskoordinator', icon: '🚛',
+    beskrivelse: 'Tømninger, beholdere, sager om manglende tømning, ADS-indberetning',
+    default_view: 'dashboard',
+    menu: [
+      { section: '📊 Drift-overblik', items: [
+        { view: 'dashboard',         icon: '🏠', label: 'Dashboard' },
+        { view: 'sager',             icon: '📞', label: 'Sager' },
+        { view: 'kunder',            icon: '👥', label: 'Søg kunde' },
+      ]},
+      { section: '🚛 Tømninger & beholdere', items: [
+        { view: 'tomninger',         icon: '📅', label: 'Tømninger' },
+        { view: 'beholdere',         icon: '🗑️', label: 'Beholdere' },
+        { view: 'storskrald',        icon: '📦', label: 'Storskrald' },
+        { view: 'genbrugsplads',     icon: '♻️', label: 'Genbrugsplads' },
+        { view: 'webhook',           icon: '🔌', label: 'Driftssystem-events' },
+      ]},
+      { section: '📤 Indberetninger', items: [
+        { view: 'ads',               icon: '📤', label: 'ADS (Miljøstyrelsen)' },
+      ]},
+    ],
+  },
+  afregningsansvarlig: {
+    titel: 'Afregningsansvarlig', icon: '💶',
+    beskrivelse: 'Fakturering, restance, opkrævning, ERP, prisblade',
+    default_view: 'rykker',
+    menu: [
+      { section: '💶 Fakturering', items: [
+        { view: 'fakturaer',         icon: '🧾', label: 'Fakturaer' },
+        { view: 'fakturakorsel',     icon: '⚡', label: 'Fakturakørsel' },
+        { view: 'rykker',            icon: '⏰', label: 'Rykker & restance' },
+        { view: 'betalingsaftaler',  icon: '🤝', label: 'Betalingsaftaler' },
+      ]},
+      { section: '🏦 Opkrævning & afstemning', items: [
+        { view: 'pbs',               icon: '🏦', label: 'PBS / NETS' },
+        { view: 'bankfil',           icon: '🏧', label: 'Bankfilimport' },
+        { view: 'kommunal',          icon: '🏛️', label: 'Kommunal opkrævning' },
+        { view: 'erp',               icon: '📊', label: 'ERP-eksport' },
+      ]},
+      { section: '⚖️ Regulering & priser', items: [
+        { view: 'prisblade',         icon: '💰', label: 'Prisblade' },
+        { view: 'varslinger',        icon: '📨', label: 'Massevarslinger' },
+      ]},
+      { section: '👥 Søg', items: [
+        { view: 'kunder',            icon: '👥', label: 'Kunder' },
+        { view: 'audit',             icon: '🔒', label: 'Audit-trail' },
+      ]},
+    ],
+  },
+  kundesupport: {
+    titel: 'Kundeservice-medarbejder', icon: '🛟',
+    beskrivelse: 'Kunder, sager, breve, sorteringsguide, Zerv selvbetjening',
+    default_view: 'sager',
+    menu: [
+      { section: '🛟 Sager & kunder', items: [
+        { view: 'sager',             icon: '📞', label: 'Sage-arbejdsbord' },
+        { view: 'kunder',            icon: '👥', label: 'Kunder' },
+        { view: 'boligadm',          icon: '🏘', label: 'Boligadministratorer' },
+      ]},
+      { section: '✉️ Kommunikation', items: [
+        { view: 'brevskabeloner',    icon: '✉️', label: 'Brevskabeloner' },
+        { view: 'sortering',         icon: '♻️', label: 'Sorteringsguide' },
+      ]},
+      { section: '📱 Selvbetjening', items: [
+        { view: 'zerv',              icon: '📱', label: 'Zerv test-portal' },
+      ]},
+      { section: '🔍 Drift-data (læs)', items: [
+        { view: 'tomninger',         icon: '📅', label: 'Tømninger' },
+        { view: 'beholdere',         icon: '🗑️', label: 'Beholdere' },
+        { view: 'fakturaer',         icon: '🧾', label: 'Fakturaer' },
+      ]},
+    ],
+  },
+  leder: {
+    titel: 'Leder / Setup', icon: '👔',
+    beskrivelse: 'Strategisk overblik, KPI, system-setup, use case-status',
+    default_view: 'dashboard',
+    menu: [
+      { section: '📊 Strategisk overblik', items: [
+        { view: 'dashboard',         icon: '🏠', label: 'Dashboard' },
+        { view: 'kundeservice-stats',icon: '🛟', label: 'Kundeservice-KPI' },
+        { view: 'miljo-stats',       icon: '🌍', label: 'Miljø-dashboard' },
+        { view: 'hvile',             icon: '⚖️', label: 'Hvile-i-sig-selv' },
+      ]},
+      { section: '🛠️ System & setup', items: [
+        { view: 'usecases',          icon: '🗂️', label: 'Use cases (status)' },
+        { view: 'kommuner',          icon: '🏛️', label: 'Kommuner' },
+        { view: 'helligdage',        icon: '🎄', label: 'Helligdage' },
+        { view: 'prisblade',         icon: '💰', label: 'Prisblade' },
+        { view: 'audit',             icon: '🔒', label: 'Audit-trail' },
+        { view: 'gdpr-politik',      icon: '🛡️', label: 'GDPR-politik' },
+      ]},
+      { section: '🔍 Operationel adgang', items: [
+        { view: 'kunder',            icon: '👥', label: 'Kunder' },
+        { view: 'sager',             icon: '📞', label: 'Sager' },
+        { view: 'fakturaer',         icon: '🧾', label: 'Fakturaer' },
+        { view: 'tomninger',         icon: '📅', label: 'Tømninger' },
+        { view: 'webhook',           icon: '🔌', label: 'Webhook-log' },
+        { view: 'ads',               icon: '📤', label: 'ADS-indberetning' },
+        { view: 'varslinger',        icon: '📨', label: 'Varslinger' },
+      ]},
+    ],
+  },
+  borger: {
+    titel: 'Borger (Zerv)', icon: '👤',
+    beskrivelse: 'Selvbetjening: min konto, bestillinger, fakturaoversigt',
+    default_view: 'zerv',
+    menu: [
+      { section: '👤 Min side', items: [
+        { view: 'zerv',              icon: '📱', label: 'Min konto' },
+        { view: 'sortering',         icon: '♻️', label: 'Sorteringsguide' },
+      ]},
+    ],
+  },
+};
+
+function aktivBruger() {
+  const id = localStorage.getItem('aktivBrugerId') || BRUGERE[0].id;
+  return BRUGERE.find(b => b.id === id) || BRUGERE[0];
+}
+function aktivRolle() {
+  return ROLLER[aktivBruger().rolle];
+}
+
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  const rolle = aktivRolle();
+  sb.innerHTML = `
+    <div style="padding:14px 22px 10px;border-bottom:1px solid var(--border);margin-bottom:8px">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Rolle</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:2px">${rolle.icon} ${rolle.titel}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4">${rolle.beskrivelse}</div>
+    </div>
+    ${rolle.menu.map(s => `
+      <div class="sidebar-section">${s.section}</div>
+      ${s.items.map(i => `
+        <div class="sidebar-link" data-view="${i.view}"><span class="ico">${i.icon}</span>${i.label}</div>
+      `).join('')}
+    `).join('')}
+    <div class="sidebar-section">💧 Andre domæner</div>
+    <div class="sidebar-link" style="opacity:.5;cursor:not-allowed" title="Kommer i næste fase"><span class="ico">💧</span>Spildevand</div>
+  `;
+  // Bind klik
+  sb.querySelectorAll('.sidebar-link').forEach(el => {
+    el.addEventListener('click', () => el.dataset.view && go(el.dataset.view));
+  });
+}
+
+function renderUserPicker() {
+  const u = aktivBruger();
+  const r = aktivRolle();
+  document.getElementById('user-name').textContent = u.navn;
+  document.getElementById('user-role').textContent = r.icon + ' ' + r.titel;
+  const av = document.getElementById('user-avatar');
+  av.textContent = u.initialer;
+  av.style.background = u.farve;
+  const dd = document.getElementById('user-dropdown');
+  dd.innerHTML = `
+    <div style="padding:10px 14px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--border)">Skift bruger / rolle</div>
+    ${BRUGERE.map(b => {
+      const ro = ROLLER[b.rolle];
+      return `<div class="search-item" data-bruger="${b.id}" style="${b.id === u.id ? 'background:rgba(37,99,235,.06)' : ''}">
+        <div class="avatar" style="background:${b.farve};width:34px;height:34px;font-size:11px">${b.initialer}</div>
+        <div class="si-info">
+          <div class="si-title">${b.navn}${b.id === u.id ? ' <span style="color:var(--accent);font-size:10px">·valgt</span>' : ''}</div>
+          <div class="si-meta">${ro.icon} ${ro.titel}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+  dd.querySelectorAll('[data-bruger]').forEach(el => {
+    el.addEventListener('click', () => skiftBruger(el.dataset.bruger));
+  });
+}
+
+function skiftBruger(id) {
+  localStorage.setItem('aktivBrugerId', id);
+  document.getElementById('user-dropdown').style.display = 'none';
+  renderUserPicker();
+  renderSidebar();
+  // Naviger til rollens default-view (eller til Min konto for borger).
+  const r = aktivRolle();
+  go(r.default_view);
+  toast('Skiftet til ' + aktivBruger().navn, 'success');
+}
+
+document.getElementById('user-picker').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = document.getElementById('user-dropdown');
+  dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+});
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('user-dropdown');
+  if (dd && !dd.contains(e.target) && !document.getElementById('user-picker').contains(e.target)) dd.style.display = 'none';
+});
+
+// ── Routing ──
 const views = {};
 function go(view, params = {}) {
   document.querySelectorAll('.sidebar-link').forEach(el => el.classList.toggle('active', el.dataset.view === view));
   location.hash = '#' + view + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '');
   main.innerHTML = '<div class="empty"><div class="spinner"></div> Indlæser…</div>';
+  // Hvis rollen ikke har adgang til viewet, redirect til default.
+  if (!harAdgang(view, params)) {
+    const r = aktivRolle();
+    main.innerHTML = `<div class="alert alert-warn">Din rolle (${r.titel}) har ikke adgang til <code>${view}</code>. Bruger default-view i stedet.</div>`;
+    setTimeout(() => go(r.default_view), 800);
+    return;
+  }
   (views[view] || views.dashboard)(params).catch(e => {
     main.innerHTML = `<div class="alert alert-error">Fejl: ${e.message}</div>`;
   });
 }
 
-document.querySelectorAll('.sidebar-link').forEach(el => {
-  el.addEventListener('click', () => el.dataset.view && go(el.dataset.view));
-});
+function harAdgang(view, params = {}) {
+  const r = aktivRolle();
+  for (const s of r.menu) for (const i of s.items) if (i.view === view) return true;
+  // Tillad detalje-visninger der nås via et legitimt link (fx kontrakter?id=… fra kunde 360).
+  if (params.id) return true;
+  return false;
+}
 
 window.addEventListener('hashchange', parseHash);
 function parseHash() {
-  const [view, qs] = (location.hash.slice(1) || 'dashboard').split('?');
+  const r = aktivRolle();
+  const [view, qs] = (location.hash.slice(1) || r.default_view).split('?');
   const params = Object.fromEntries(new URLSearchParams(qs || ''));
+  // Borger-rollen har auto-login som specifik kunde i Zerv-viewet.
+  if (aktivBruger().rolle === 'borger' && view === 'zerv' && aktivBruger().kunde_id && !params.kunde) {
+    params.kunde = aktivBruger().kunde_id;
+  }
   go(view, params);
 }
 
@@ -2938,6 +3111,10 @@ function bindPagination(container, total, offset, limit, onPage) {
 }
 
 // ── INIT ──
+renderUserPicker();
+renderSidebar();
+// Hvis ingen hash → start på rollens default-view.
+if (!location.hash) location.hash = '#' + aktivRolle().default_view;
 parseHash();
 </script>
 </body>
