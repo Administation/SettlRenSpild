@@ -167,14 +167,20 @@ tr.clickable{cursor:pointer;}
     <!-- ═══ OVERBLIK ═══ -->
     <div class="sidebar-section">📊 Overblik</div>
     <div class="sidebar-link" data-view="dashboard"><span class="ico">🏠</span>Dashboard</div>
+    <div class="sidebar-link" data-view="kundeservice-stats"><span class="ico">🛟</span>Kundeservice-stats</div>
+    <div class="sidebar-link" data-view="miljo-stats"><span class="ico">🌍</span>Miljø-dashboard</div>
+    <div class="sidebar-link" data-view="hvile"><span class="ico">⚖️</span>Hvile-i-sig-selv</div>
     <div class="sidebar-link" data-view="ads"><span class="ico">📤</span>ADS-indberetning</div>
     <div class="sidebar-link" data-view="audit"><span class="ico">🔒</span>Audit-trail</div>
+    <div class="sidebar-link" data-view="gdpr-politik"><span class="ico">🛡️</span>GDPR-politik</div>
     <div class="sidebar-link" data-view="usecases"><span class="ico">🗂️</span>Use cases <span id="sidebar-uc" class="count"></span></div>
 
     <!-- ═══ KUNDESERVICE ═══ -->
     <div class="sidebar-section">🛟 Kundeservice</div>
     <div class="sidebar-link" data-view="kunder"><span class="ico">👥</span>Kunder</div>
     <div class="sidebar-link" data-view="sager"><span class="ico">📞</span>Sager <span id="sidebar-sager" class="count"></span></div>
+    <div class="sidebar-link" data-view="boligadm"><span class="ico">🏘</span>Boligadministratorer</div>
+    <div class="sidebar-link" data-view="brevskabeloner"><span class="ico">✉️</span>Brevskabeloner</div>
 
     <!-- ═══ BACKEND: Stamdata ═══ -->
     <div class="sidebar-section">🗃️ Backend · Stamdata</div>
@@ -187,6 +193,7 @@ tr.clickable{cursor:pointer;}
     <div class="sidebar-link" data-view="beholdere"><span class="ico">🗑️</span>Beholdere</div>
     <div class="sidebar-link" data-view="tomninger"><span class="ico">📅</span>Tømninger</div>
     <div class="sidebar-link" data-view="storskrald"><span class="ico">📦</span>Storskrald</div>
+    <div class="sidebar-link" data-view="genbrugsplads"><span class="ico">♻️</span>Genbrugsplads</div>
     <div class="sidebar-link" data-view="helligdage"><span class="ico">🎄</span>Helligdage</div>
     <div class="sidebar-link" data-view="webhook"><span class="ico">🔌</span>Webhook-log</div>
 
@@ -197,6 +204,8 @@ tr.clickable{cursor:pointer;}
     <div class="sidebar-link" data-view="rykker"><span class="ico">⏰</span>Rykker & restance</div>
     <div class="sidebar-link" data-view="betalingsaftaler"><span class="ico">🤝</span>Betalingsaftaler</div>
     <div class="sidebar-link" data-view="pbs"><span class="ico">🏦</span>PBS / NETS</div>
+    <div class="sidebar-link" data-view="bankfil"><span class="ico">🏧</span>Bankfilimport</div>
+    <div class="sidebar-link" data-view="kommunal"><span class="ico">🏛️</span>Kommunal opkrævning</div>
     <div class="sidebar-link" data-view="erp"><span class="ico">📊</span>ERP-eksport</div>
 
     <!-- ═══ BACKEND: Regulering & Priser ═══ -->
@@ -207,6 +216,7 @@ tr.clickable{cursor:pointer;}
     <!-- ═══ Selvbetjening ═══ -->
     <div class="sidebar-section">📱 Selvbetjening</div>
     <div class="sidebar-link" data-view="zerv"><span class="ico">📱</span>Zerv test-portal</div>
+    <div class="sidebar-link" data-view="sortering"><span class="ico">♻️</span>Sorteringsguide</div>
 
     <!-- ═══ Andre services (placeholder) ═══ -->
     <div class="sidebar-section">💧 Andre domæner</div>
@@ -448,6 +458,8 @@ async function showKunde(id, tab) {
         <a class="btn" href="/api/kunder/${k.id}/kalender.html" target="_blank">📅 Kalender</a>
         <a class="btn" href="/api/kunder/${k.id}/kalender.ics">📥 .ics</a>
         <a class="btn" href="/api/aarsopgoerelse/${k.id}/html?aar=${new Date().getFullYear()}" target="_blank">📄 Årsopgørelse</a>
+        <a class="btn" href="/api/gdpr/${k.id}/eksport?format=json-download" target="_blank">🛡️ GDPR-eksport</a>
+        <button class="btn" onclick="visSorteringsscore('${k.id}')">♻️ Sorteringsscore</button>
         <button class="btn" onclick="go('kunder')">← Tilbage</button>
       </div>
     </div>
@@ -772,6 +784,24 @@ window.kvikOpretSag = function(kundeId) {
     toast('Sag oprettet', 'success');
     showKunde(kundeId, 'sager');
   });
+};
+
+window.visSorteringsscore = async function(kundeId) {
+  const s = await api('/stats/sorteringsscore/' + kundeId);
+  openModal(`Sorteringsscore — ${s.score}/100`, `
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:80px;font-weight:600;color:${s.score>=80?'var(--green)':s.score>=60?'var(--yellow)':'var(--red)'}">${s.score}</div>
+      <div style="color:var(--muted)">${s.gennemsnit_score != null ? `Gennemsnit: ${s.gennemsnit_score}/100` : ''}</div>
+    </div>
+    <div class="alert ${s.score>=80?'alert-success':s.score>=60?'alert-info':'alert-warn'}">${s.nudging}</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+      <div class="card"><div class="card-title">Total affald</div><div class="card-value-sm">${s.total_kg} kg</div></div>
+      <div class="card"><div class="card-title">Rest-andel</div><div class="card-value-sm">${s.rest_andel_pct}%</div></div>
+      <div class="card"><div class="card-title">CO₂ sparet (estimat)</div><div class="card-value-sm">${s.co2_estimat_kg} kg</div></div>
+    </div>
+    <div class="section-title" style="margin-top:18px">Vægt pr. fraktion (sidste ${s.periode_dage} dage)</div>
+    <table style="font-size:13px;width:100%"><tbody>${s.pr_fraktion.filter(r => Number(r.kg) > 0).map(r => `<tr><td>${r.fraktion_navn}</td><td style="text-align:right">${Number(r.kg).toFixed(1)} kg</td><td style="text-align:right">${r.antal} tømn.</td></tr>`).join('') || '<tr><td colspan="3" class="empty">Ingen vægtdata endnu</td></tr>'}</tbody></table>
+  `, null, [{ label: 'Luk', action: closeModal }]);
 };
 
 window.kvikStorskrald = async function(kundeId) {
@@ -2411,6 +2441,346 @@ window.zervStorskrald = function(kundeId) {
     closeModal();
     toast('Bestilt via Zerv: ' + r.sag_id, 'success');
   });
+};
+
+// ── SORTERINGSGUIDE (UC-49) ──
+views.sortering = async () => {
+  const alle = await api('/ordninger/sortering/alle');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Sorteringsguide</div><div class="page-sub">${alle.length} indslag · søg efter affaldstype</div></div>
+    </div>
+    <div class="toolbar"><input id="sg-q" type="text" placeholder="Skriv fx 'pizzabakke', 'batteri', 'gren'..." style="flex:1;font-size:15px"></div>
+    <div id="sg-result"></div>
+  `;
+  const render = (rows) => `<div class="card" style="padding:0"><table>
+    <thead><tr><th style="width:120px">Fraktion</th><th>Råd</th></tr></thead>
+    <tbody>${rows.map(r => `<tr><td><strong>${r.fraktion}</strong></td><td>${r.svar}</td></tr>`).join('')}</tbody>
+  </table></div>`;
+  document.getElementById('sg-result').innerHTML = render(alle);
+  document.getElementById('sg-q').oninput = async (e) => {
+    const q = e.target.value.trim();
+    if (!q) return document.getElementById('sg-result').innerHTML = render(alle);
+    const r = await api('/ordninger/sortering/sog?q=' + encodeURIComponent(q));
+    document.getElementById('sg-result').innerHTML = r.length
+      ? render(r)
+      : '<div class="card"><div class="empty">Ingen match. Prøv "papir", "plast", "rest", "have"...</div></div>';
+  };
+};
+
+// ── GENBRUGSPLADS (UC-50) ──
+views.genbrugsplads = async () => {
+  const [list, stats] = await Promise.all([
+    api('/genbrugsplads'),
+    api('/genbrugsplads/stats?dage=30'),
+  ]);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Genbrugsplads-besøg</div><div class="page-sub">Erhverv betaler pr. besøg/kg · privat er gratis</div></div>
+      <button class="btn btn-primary" onclick="newGenbrugsplads()">+ Registrér besøg</button>
+    </div>
+    ${stats.anomali.length ? `<div class="alert alert-warn">⚠ ${stats.anomali.length} erhvervskunder med anomalt mange besøg/kg de sidste ${stats.periode_dage} dage — tjek for misbrug.</div>` : ''}
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:18px">
+      <div class="card"><div class="card-title">Top 50 kunder (30 dage)</div><div class="card-value">${stats.top.length}</div></div>
+      <div class="card"><div class="card-title">Heraf anomalier</div><div class="card-value" style="color:${stats.anomali.length?'var(--red)':'var(--green)'}">${stats.anomali.length}</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th>Kunde</th><th>Type</th><th>Reg.</th><th>Vægt</th><th>Pris</th><th>Faktureret</th></tr></thead>
+        <tbody>${list.length ? list.map(g => `<tr>
+          <td>${new Date(g.dato).toLocaleString('da-DK')}</td>
+          <td>${g.kunde_navn}</td>
+          <td>${badge(g.kunde_type==='erhverv'?'orange':'blue', g.kunde_type)}</td>
+          <td>${g.registrering}${g.identifikator?' · <code style="font-size:11px">'+g.identifikator+'</code>':''}</td>
+          <td>${g.vægt_kg ? Number(g.vægt_kg).toFixed(1) + ' kg' : '—'}</td>
+          <td>${fmtDKK(g.pris)} kr.</td>
+          <td>${g.faktureret ? badge('green','ja') : badge('gray','nej')}</td>
+        </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen besøg endnu</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+window.newGenbrugsplads = async function() {
+  const kunder = (await api('/kunder?limit=50')).rows;
+  openModal('Registrér genbrugsplads-besøg', `
+    <div class="form-row"><label>Kunde *</label><select id="gp-k">${kunder.map(k => `<option value="${k.id}">${k.navn} (${k.type})</option>`).join('')}</select></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Registrering</label><select id="gp-reg"><option value="manuel">Manuel</option><option value="nummerplade">Nummerplade</option><option value="brik">Brik</option></select></div>
+      <div class="form-row"><label>Identifikator</label><input id="gp-ident" placeholder="fx AB12345"></div>
+      <div class="form-row"><label>Vægt (kg)</label><input type="number" step="0.1" id="gp-kg"></div>
+      <div class="form-row"><label>Pris (auto for erhverv)</label><input type="number" step="0.01" id="gp-pris" placeholder="auto"></div>
+    </div>
+  `, async () => {
+    await api('/genbrugsplads', { method: 'POST', body: JSON.stringify({
+      kunde_id: document.getElementById('gp-k').value,
+      registrering: document.getElementById('gp-reg').value,
+      identifikator: document.getElementById('gp-ident').value || null,
+      vægt_kg: document.getElementById('gp-kg').value || null,
+      pris: document.getElementById('gp-pris').value || null,
+    }) });
+    closeModal();
+    toast('Besøg registreret', 'success');
+    go('genbrugsplads');
+  });
+};
+
+// ── BANKFILIMPORT (UC-65) ──
+views.bankfil = async () => {
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Bankfilimport</div><div class="page-sub">CAMT.054 light eller CSV — auto-match til fakturaer</div></div></div>
+    <div class="alert alert-info">CSV-format: <code>dato;belob;tekst;reference</code> — én linje pr. transaktion. Header valgfri.</div>
+    <div class="card">
+      <div class="form-row"><label>Bankfil-CSV</label><textarea id="bf-csv" rows="10" placeholder="2026-04-25;1850.00;Renovation faktura;100001
+2026-04-25;500.00;Indbetaling Anders;KU-DEMO01" style="font-family:monospace;font-size:12px"></textarea></div>
+      <div style="display:flex;gap:8px"><button class="btn" id="bf-prev">1. Preview match</button><button class="btn btn-success" id="bf-imp" disabled>2. Importer</button></div>
+    </div>
+    <div id="bf-result"></div>
+  `;
+  let lastCsv = null;
+  document.getElementById('bf-prev').onclick = async () => {
+    const csv = document.getElementById('bf-csv').value;
+    if (!csv.trim()) return toast('Indsæt CSV først', 'error');
+    const r = await api('/bankfil/preview', { method: 'POST', body: JSON.stringify({ csv }) });
+    lastCsv = csv;
+    document.getElementById('bf-result').innerHTML = `
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin:18px 0">
+        <div class="card"><div class="card-title">Total</div><div class="card-value">${r.antal}</div></div>
+        <div class="card"><div class="card-title">Auto-matchet</div><div class="card-value" style="color:var(--green)">${r.matchet}</div></div>
+        <div class="card"><div class="card-title">Mangler match</div><div class="card-value" style="color:${r.ikke_matchet?'var(--orange)':'var(--green)'}">${r.ikke_matchet}</div></div>
+      </div>
+      <div class="card" style="padding:0"><table>
+        <thead><tr><th>Dato</th><th>Beløb</th><th>Tekst/ref</th><th>Match</th></tr></thead>
+        <tbody>${r.transaktioner.map(t => `<tr>
+          <td>${t.tx.dato}</td><td>${fmtDKK(t.tx.belob)} kr.</td>
+          <td><code style="font-size:11px">${t.tx.tekst} ${t.tx.reference}</code></td>
+          <td>${t.match ? `${badge('green','OK')} faktura ${t.match.fakturanr} (${t.match.hvordan})` : '<span class="badge badge-orange">manuel</span>'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    `;
+    document.getElementById('bf-imp').disabled = r.matchet === 0;
+  };
+  document.getElementById('bf-imp').onclick = async () => {
+    if (!lastCsv) return;
+    if (!confirm('Bekræft import af bankfil?')) return;
+    const r = await api('/bankfil/import', { method: 'POST', body: JSON.stringify({ csv: lastCsv, bruger: 'Økonomi' }) });
+    toast(`${r.registreret.length} betalinger registreret, ${r.fejlkoe.length} til manuel`, 'success');
+    go('rykker');
+  };
+};
+
+// ── KOMMUNAL OPKRÆVNING (UC-66) ──
+views.kommunal = async () => {
+  const kommuner = await api('/kommuner');
+  const aar = new Date().getFullYear();
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Kommunal opkrævningsfil</div><div class="page-sub">Gebyrgrundlag til ejendomsskattebillet</div></div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-row"><label>Kommune</label><select id="ko-k">${kommuner.map(k => `<option value="${k.id}">${k.navn}</option>`).join('')}</select></div>
+        <div class="form-row"><label>År</label><input type="number" id="ko-aar" value="${aar}"></div>
+        <div class="form-row" style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" id="ko-prev">Preview</button>
+          <a class="btn btn-success" id="ko-dl" style="display:none">Download fil</a>
+        </div>
+      </div>
+    </div>
+    <div id="ko-result"></div>
+  `;
+  document.getElementById('ko-prev').onclick = async () => {
+    const k = document.getElementById('ko-k').value;
+    const a = document.getElementById('ko-aar').value;
+    const r = await api(`/kommunal-opkraevning/preview?kommune_id=${k}&aar=${a}`);
+    document.getElementById('ko-result').innerHTML = `
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin:18px 0">
+        <div class="card"><div class="card-title">Ejendomme</div><div class="card-value">${r.antal}</div></div>
+        <div class="card"><div class="card-title">Total beløb</div><div class="card-value">${fmtDKK(r.total)} kr.</div></div>
+        <div class="card"><div class="card-title">År</div><div class="card-value">${r.aar}</div></div>
+      </div>
+      <div class="card" style="padding:0"><table>
+        <thead><tr><th>BFE-nr</th><th>Adresse</th><th>Type</th><th>Beholdere</th><th style="text-align:right">Årsbeløb</th></tr></thead>
+        <tbody>${r.rows.map(x => `<tr>
+          <td><code>${x.bfe_nr || '—'}</code></td>
+          <td>${x.vejnavn || ''} ${x.husnr || ''}, ${x.postnr || ''} ${x.by || ''}</td>
+          <td>${x.ejendomstype || '—'}</td>
+          <td>${x.antal_beholdere}</td>
+          <td style="text-align:right">${fmtDKK(x.aarsbelob_incl)} kr.</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    `;
+    const dl = document.getElementById('ko-dl');
+    dl.style.display = r.antal > 0 ? 'inline-flex' : 'none';
+    dl.href = `/api/kommunal-opkraevning/fil?kommune_id=${k}&aar=${a}`;
+  };
+};
+
+// ── KUNDESERVICE-STATS (UC-60) ──
+views['kundeservice-stats'] = async () => {
+  const d = await api('/stats/kundeservice?dage=30');
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Kundeservice-dashboard</div><div class="page-sub">Sidste 30 dage</div></div></div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:18px">
+      <div class="card"><div class="card-title">Lukkede sager</div><div class="card-value">${d.sla.lukket_periode}</div></div>
+      <div class="card"><div class="card-title">Åbne sager</div><div class="card-value">${d.sla.aabne}</div></div>
+      <div class="card"><div class="card-title">SLA overskredet</div><div class="card-value" style="color:${d.sla.sla_overskredet?'var(--red)':'var(--green)'}">${d.sla.sla_overskredet}</div></div>
+      <div class="card"><div class="card-title">Gns. løsningstid</div><div class="card-value-sm">${d.sla.gns_loesningstid_timer ? Number(d.sla.gns_loesningstid_timer).toFixed(1)+' t' : '—'}</div></div>
+      <div class="card"><div class="card-title">FCR (first contact resolution)</div><div class="card-value">${d.first_contact_resolution_pct}%</div></div>
+      <div class="card"><div class="card-title">Automatiseringsgrad</div><div class="card-value">${d.automatiseringsgrad_pct}%</div></div>
+    </div>
+    <div class="split">
+      <div class="card"><div class="card-title">Top 10 problemadresser</div>
+        ${d.top_problemadresser.length ? `<table><thead><tr><th>Kunde/Adresse</th><th style="text-align:right">Sager</th></tr></thead>
+        <tbody>${d.top_problemadresser.map(t => `<tr><td>${t.kunde_navn}<br><span style="font-size:11px;color:var(--muted)">${t.vejnavn||''} ${t.husnr||''}, ${t.postnr||''}</span></td><td style="text-align:right">${t.antal_sager}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Ingen gentagende problemer 🎉</div>'}
+      </div>
+      <div class="card"><div class="card-title">Sager pr. kategori</div>
+        ${d.kategorier.length ? `<table><tbody>${d.kategorier.map(k => `<tr><td>${k.kategori || '—'}</td><td style="text-align:right">${k.n}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">—</div>'}
+      </div>
+    </div>
+  `;
+};
+
+// ── MILJØ-DASHBOARD (UC-61) ──
+views['miljo-stats'] = async () => {
+  const aar = new Date().getFullYear();
+  const d = await api('/stats/miljo?aar=' + aar);
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Miljø- &amp; affaldsdashboard ${aar}</div><div class="page-sub">${Number(d.total_kg).toLocaleString('da-DK')} kg total</div></div></div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:18px">
+      <div class="card"><div class="card-title">Total affald</div><div class="card-value">${Number(d.total_kg).toLocaleString('da-DK')} kg</div></div>
+      <div class="card"><div class="card-title">Genanvendelses-andel</div><div class="card-value" style="color:var(--green)">${d.genanvendelses_andel_pct}%</div></div>
+      <div class="card"><div class="card-title">CO₂ sparet (estimat)</div><div class="card-value">${Number(d.co2_sparet_kg_estimat).toLocaleString('da-DK')} kg</div></div>
+      <div class="card"><div class="card-title">Fejlsorterings-events</div><div class="card-value">${d.fejlsortering.reduce((s,r)=>s+Number(r.n),0)}</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border)"><strong>Affaldsmængder pr. fraktion</strong></div>
+      <table><thead><tr><th>Fraktion</th><th style="text-align:right">Tømninger</th><th style="text-align:right">Vægt (kg)</th><th>Andel</th></tr></thead>
+      <tbody>${d.pr_fraktion.map(f => {
+        const andel = Number(d.total_kg) > 0 ? (Number(f.total_kg) / Number(d.total_kg) * 100) : 0;
+        return `<tr>
+          <td><span class="dot" style="background:${f.farve||'#999'}"></span>${f.navn}</td>
+          <td style="text-align:right">${f.antal_tomninger}</td>
+          <td style="text-align:right">${Number(f.total_kg).toFixed(1)}</td>
+          <td><div style="background:var(--surface2);border-radius:4px;overflow:hidden;height:10px"><div style="height:100%;background:${f.farve||'#999'};width:${andel.toFixed(1)}%"></div></div><span style="font-size:11px;color:var(--muted)">${andel.toFixed(1)}%</span></td>
+        </tr>`;
+      }).join('')}</tbody></table>
+    </div>
+  `;
+};
+
+// ── HVILE-I-SIG-SELV (UC-54) ──
+views.hvile = async () => {
+  const aar = new Date().getFullYear();
+  const d = await api('/stats/hvile-i-sig-selv?aar=' + aar);
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Hvile-i-sig-selv ${aar}</div><div class="page-sub">Dækningsgrad indtægt vs. estimerede omkostninger</div></div></div>
+    <div class="alert ${d.daekningsgrad_pct > 105 ? 'alert-warn' : d.daekningsgrad_pct < 95 ? 'alert-error' : 'alert-success'}">${d.kommentar}</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px">
+      <div class="card"><div class="card-title">Indtægt</div><div class="card-value">${fmtDKK(d.indtaegt)} kr.</div></div>
+      <div class="card"><div class="card-title">Omkostninger</div><div class="card-value">${fmtDKK(d.omkostninger.total)} kr.</div></div>
+      <div class="card"><div class="card-title">Dækningsgrad</div><div class="card-value">${d.daekningsgrad_pct}%</div></div>
+      <div class="card"><div class="card-title">Saldo</div><div class="card-value" style="color:${Number(d.saldo)<0?'var(--red)':'var(--green)'}">${fmtDKK(d.saldo)} kr.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Omkostnings-fordeling (estimeret)</div>
+      <table><tbody>
+        <tr><td>Drift (60%)</td><td style="text-align:right">${fmtDKK(d.omkostninger.drift)} kr.</td></tr>
+        <tr><td>Behandlingsanlæg (25%)</td><td style="text-align:right">${fmtDKK(d.omkostninger.behandling)} kr.</td></tr>
+        <tr><td>Administration (10%)</td><td style="text-align:right">${fmtDKK(d.omkostninger.admin)} kr.</td></tr>
+      </tbody></table>
+      <div style="margin-top:14px;font-size:11px;color:var(--muted)">${d.hint}</div>
+    </div>
+    <div class="section-title">Gebyr-simulering</div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-row"><label>Justering (%)</label><input type="number" id="gs-pct" step="1" value="5"></div>
+        <div class="form-row" style="display:flex;align-items:flex-end"><button class="btn" id="gs-go">Simulér</button></div>
+      </div>
+      <div id="gs-result"></div>
+    </div>
+  `;
+  document.getElementById('gs-go').onclick = async () => {
+    const pct = parseFloat(document.getElementById('gs-pct').value);
+    const r = await api('/stats/gebyr-simuler', { method: 'POST', body: JSON.stringify({ justeringer: { pct } }) });
+    document.getElementById('gs-result').innerHTML = `
+      <div class="alert alert-info" style="margin-top:14px">
+        Med <strong>${pct}%</strong> justering: omsætning ${fmtDKK(r.nuvaerende_omsaetning_excl)} → <strong>${fmtDKK(r.ny_omsaetning_excl)} kr.</strong>
+        (ændring ${pct >= 0 ? '+' : ''}${fmtDKK(r.aendring_excl)} kr.)
+      </div>
+    `;
+  };
+};
+
+// ── GDPR-POLITIK (UC-58) ──
+views['gdpr-politik'] = async () => {
+  const p = await api('/gdpr/politik');
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">GDPR-politik</div><div class="page-sub">Dataregistrering, opbevaring, rettigheder</div></div></div>
+    <div class="split">
+      <div class="card"><div class="card-title">Opbevaringsregler</div>
+        <table><tbody>${p.opbevaringsregler.map(r => `<tr><td><code style="font-size:11px">${r.entitet}</code></td><td>${r.retention}</td></tr>`).join('')}</tbody></table>
+      </div>
+      <div class="card"><div class="card-title">Kunderettigheder (GDPR)</div>
+        <ul style="font-size:13px;line-height:1.8;padding-left:18px">${p.rettigheder.map(r => `<li>${r}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="alert alert-info" style="margin-top:18px">På Kunde 360 → klik "📥 GDPR-eksport" for at udtrække alle data om en specifik kunde (Art. 15).</div>
+  `;
+};
+
+// ── BOLIGADMINISTRATORER (UC-55) ──
+views.boligadm = async (params) => {
+  if (params.id) {
+    const d = await api('/boligadm/' + params.id + '/portefoelje');
+    main.innerHTML = `
+      <div class="page-header">
+        <div><div class="page-title">${d.admin.navn}</div><div class="page-sub">Boligadministrator-portefølje · ${d.aar}</div></div>
+        <button class="btn" onclick="go('boligadm')">← Tilbage</button>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:18px">
+        <div class="card"><div class="card-title">Ejendomme</div><div class="card-value">${d.samlet.ejendomme}</div></div>
+        <div class="card"><div class="card-title">Aktive kontrakter</div><div class="card-value">${d.samlet.kontrakter_aktive}</div></div>
+        <div class="card"><div class="card-title">Fakturaer (året)</div><div class="card-value">${d.samlet.fakturaer_aar}</div></div>
+        <div class="card"><div class="card-title">Total beløb</div><div class="card-value">${fmtDKK(d.samlet.total_belob)} kr.</div></div>
+        <div class="card"><div class="card-title">Restance</div><div class="card-value" style="color:${Number(d.samlet.restance)>0?'var(--red)':'var(--green)'}">${fmtDKK(d.samlet.restance)} kr.</div></div>
+      </div>
+      <div class="section-title">Ejendomme</div>
+      <div class="card" style="padding:0"><table>
+        <thead><tr><th>Adresse</th><th>By</th><th>Kommune</th><th>Kontrakter</th><th>Beholdere</th><th>Rolle</th></tr></thead>
+        <tbody>${d.ejendomme.map(e => `<tr><td>${e.vejnavn} ${e.husnr||''}</td><td>${e.postnr} ${e.by}</td><td>${e.kommune_navn||'—'}</td><td>${e.aktive_kontrakter}</td><td>${e.beholdere}</td><td>${badge('blue',e.rolle)}</td></tr>`).join('')}</tbody>
+      </table></div>
+      <div class="section-title">Fakturaer ${d.aar}</div>
+      <div class="card" style="padding:0"><table>
+        <thead><tr><th>Nr.</th><th>Kunde</th><th>Adresse</th><th style="text-align:right">Beløb</th><th style="text-align:right">Resterer</th><th>Status</th></tr></thead>
+        <tbody>${d.fakturaer.map(f => `<tr class="clickable" onclick="go('fakturaer',{id:'${f.id}'})"><td>${f.fakturanr}</td><td>${f.kunde_navn}</td><td>${f.vejnavn||''} ${f.husnr||''}</td><td style="text-align:right">${fmtDKK(f.belob_incl)} kr.</td><td style="text-align:right">${fmtDKK(f.resterer)} kr.</td><td>${badge(f.status)}</td></tr>`).join('')}</tbody>
+      </table></div>
+    `;
+    return;
+  }
+  // Liste over kunder med boligadm-relationer.
+  const kunder = (await api('/kunder?type=erhverv&limit=50')).rows;
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Boligadministratorer</div><div class="page-sub">Erhverv-kunder der administrerer flere ejendomme</div></div></div>
+    <div class="alert alert-info">Vælg en erhvervskunde for at se deres samlede ejendomsportefølje. Tilknyt ejendomme via <code>POST /boligadm/relationer</code>.</div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Navn</th><th>CVR</th><th>Email</th></tr></thead>
+        <tbody>${kunder.length ? kunder.map(k => `<tr class="clickable" onclick="go('boligadm',{id:'${k.id}'})"><td><strong>${k.navn}</strong></td><td>${k.cvr || '—'}</td><td>${k.email || '—'}</td></tr>`).join('') : '<tr><td colspan="3" class="empty">Ingen erhvervskunder</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+// ── BREVSKABELONER (UC-63) ──
+views.brevskabeloner = async () => {
+  const list = await api('/breve/skabeloner');
+  main.innerHTML = `
+    <div class="page-header"><div><div class="page-title">Brevskabeloner</div><div class="page-sub">${list.length} skabeloner · understøtter <code>{{kunde_navn}}</code>, <code>{{fakturanr}}</code> osv.</div></div></div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Navn</th><th>Kategori</th><th>Emne</th></tr></thead>
+        <tbody>${list.map(s => `<tr><td><code>${s.id}</code></td><td><strong>${s.navn}</strong></td><td>${badge('blue', s.kategori || '—')}</td><td style="font-size:12px;color:var(--muted)">${s.emne}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
 };
 
 // ── KOMMUNER (simpel liste) ──

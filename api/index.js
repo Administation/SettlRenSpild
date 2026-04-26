@@ -49,6 +49,17 @@ app.use('/api/storskrald', require('../routes/storskrald'));
 app.use('/api/pbs', require('../routes/pbs'));
 app.use('/api/erp', require('../routes/erp'));
 app.use('/api/zerv', require('../routes/zerv'));
+app.use('/api/samtykker', require('../routes/samtykker'));
+app.use('/api/fuldmagter', require('../routes/fuldmagter'));
+app.use('/api/boligadm', require('../routes/boligadm'));
+app.use('/api/gdpr', require('../routes/gdpr'));
+app.use('/api/breve', require('../routes/breve'));
+app.use('/api/genbrugsplads', require('../routes/genbrugsplads'));
+app.use('/api/ordninger', require('../routes/ordninger'));
+app.use('/api/payt', require('../routes/payt'));
+app.use('/api/bankfil', require('../routes/bankfil'));
+app.use('/api/kommunal-opkraevning', require('../routes/kommunal-opkravning'));
+app.use('/api/stats', require('../routes/stats'));
 
 // Renovation domæne-routes.
 app.use('/api/renovation/webhook', require('../routes/webhook'));

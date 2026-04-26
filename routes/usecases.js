@@ -59,6 +59,33 @@ const UC = [
   { id: 'UC-41', titel: 'Dagsoverblik for driftskoordinator',         gruppe: 'overblik', status: 'done',    note: 'Dashboard med KPI-tiles + sage-arbejdsbord.' },
   { id: 'UC-42', titel: 'Overblik for afregningsansvarlig',           gruppe: 'overblik', status: 'partial', note: 'Dashboard og fakturakørsel-side. Årshjul + dedikeret rolleview mangler.' },
   { id: 'UC-43', titel: 'Audit-trail og historik',                    gruppe: 'overblik', status: 'done',    note: 'GET /audit med filtre på entitet/handling/bruger + UI.' },
+
+  // ─── ChatGPT-supplerende UCs der er relevante for Settl (afregning/kunde/compliance) ───
+  { id: 'UC-45', titel: 'Vægtdata pr. tømning (brutto/tara/netto)',   gruppe: 'drift',     status: 'done',    note: 'tomninger.vaegt_kg + vaegt_estimeret findes. Webhook-providers leverer det.' },
+  { id: 'UC-49', titel: 'Sorteringsguide i Zerv',                     gruppe: 'support',   status: 'done',    note: 'GET /ordninger/sortering/sog?q=… returnerer "hvor skal X hen" med 17 indslag.' },
+  { id: 'UC-50', titel: 'Genbrugsplads erhvervsbetaling',             gruppe: 'afregning', status: 'done',    note: 'POST /genbrugsplads + auto-pris til erhverv (1,50 kr/kg el. 250 kr/besøg) + misbrugsdetektion.' },
+  { id: 'UC-51', titel: 'Farligt affald som dedikeret flow',          gruppe: 'support',   status: 'done',    note: 'POST /ordninger/farligt-affald + sikkerhedsinstruktioner. Sag m. høj prioritet.' },
+  { id: 'UC-52', titel: 'Haveaffald sæsonabonnement',                 gruppe: 'stamdata',  status: 'done',    note: 'POST /ordninger/haveaffald/abonnement opretter kontrakt m/ saeson_fra/saeson_til + havebeholder.' },
+  { id: 'UC-53', titel: 'Pay-as-you-throw (vægtbaseret afregning)',   gruppe: 'afregning', status: 'done',    note: 'prisblade.afregningsmodel = "vægt" + kr/kg pr. fraktion + minimumsgebyr. Simulering m. /payt/simulér.' },
+  { id: 'UC-54', titel: 'Gebyrsimulering + hvile-i-sig-selv',         gruppe: 'regulering',status: 'done',    note: 'POST /stats/gebyr-simuler + GET /stats/hvile-i-sig-selv (dækningsgrad, takst-anbefaling).' },
+  { id: 'UC-55', titel: 'Boligadministrator-portal',                  gruppe: 'support',   status: 'done',    note: 'boligadm_relationer + GET /boligadm/:admin/portefoelje (samlet økonomi på tværs af ejendomme).' },
+  { id: 'UC-56', titel: 'Fuldmagt / adgangsdeling',                   gruppe: 'stamdata',  status: 'done',    note: 'fuldmagter-tabel m/ rolle (fuld/kun_se/service_kun) + gyldighedsperiode.' },
+  { id: 'UC-57', titel: 'Samtykkestyring + kommunikationskanaler',    gruppe: 'support',   status: 'done',    note: 'samtykker pr. (kunde, type, kanal). 5 typer × 5 kanaler. GDPR-compliant.' },
+  { id: 'UC-58', titel: 'GDPR-selvbetjening (indsigt/sletning)',      gruppe: 'overblik',  status: 'done',    note: 'GET /gdpr/:id/eksport (Art. 15) + POST /sletteanmodning (Art. 17) + /anonymiser. Politik-overblik.' },
+  { id: 'UC-59', titel: 'Sorteringsscore + adfærdsnudging',           gruppe: 'support',   status: 'done',    note: 'GET /stats/sorteringsscore/:kunde — score 0-100 baseret på rest-andel, CO₂-estimat, sammenligning m. snit.' },
+  { id: 'UC-60', titel: 'Kundeservice-dashboard',                     gruppe: 'overblik',  status: 'done',    note: 'GET /stats/kundeservice — løsningstid, FCR%, top-10 problemadresser, automatiseringsgrad.' },
+  { id: 'UC-61', titel: 'Miljø- og affaldsdashboard',                 gruppe: 'overblik',  status: 'done',    note: 'GET /stats/miljo — kg pr. fraktion, genanvendelsesandel, CO₂ sparet, fejlsortering, månedlig trend.' },
+  { id: 'UC-63', titel: 'Standardbreve & skabeloner',                 gruppe: 'support',   status: 'done',    note: '6 default-skabeloner (rykker/velkomst/godkendelse/afslag/varsling). Mustache-fletning {{kunde_navn}} osv.' },
+  { id: 'UC-65', titel: 'Bankfilimport + auto-match',                 gruppe: 'afregning', status: 'done',    note: 'POST /bankfil/preview + /import. Heuristik: fakturanr → kunde-id+belob → unikt belob.' },
+  { id: 'UC-66', titel: 'Kommunal opkrævningsfil',                    gruppe: 'afregning', status: 'done',    note: 'GET /kommunal-opkraevning/fil — BFE_NR/BBR_ID/adresse/årligt beløb til ejendomsskattebillet.' },
+
+  // ─── ChatGPT-UCs der hører til driftssystemet (RenoWeb/Ivar/Ambitek), ikke Settl ───
+  { id: 'UC-44', titel: 'Chauffør-/Field-app m. offline-mode',        gruppe: 'drift', status: 'partial', note: 'Out-of-scope for Settl. Driftssystemet leverer data via webhook (UC-10 implementeret).' },
+  { id: 'UC-46', titel: 'IoT/sensor-integration (fyldningsgrad)',     gruppe: 'drift', status: 'partial', note: 'Out-of-scope for Settl. Webhook-arkitektur kan modtage IoT-events fra driftssystemets gateway.' },
+  { id: 'UC-47', titel: 'Beholdervask + materiel-lager',              gruppe: 'drift', status: 'partial', note: 'Out-of-scope for Settl (lager-/operations-system). Audit-events kan modtages.' },
+  { id: 'UC-48', titel: 'Ruteplanlægning og -optimering',             gruppe: 'drift', status: 'partial', note: 'Out-of-scope for Settl. Planlagte tømninger eksporteres som grundlag (UC-09).' },
+  { id: 'UC-62', titel: 'Entreprenørportal m. SLA-rapportering',      gruppe: 'drift', status: 'partial', note: 'Out-of-scope for Settl. Driftssystemet ejer entreprenør-relationen.' },
+  { id: 'UC-64', titel: 'AI-assistent + anomalidetektion',            gruppe: 'overblik',status: 'partial', note: 'Defererer — kræver LLM-budget. Anomalidetektion på vægt findes delvist i /genbrugsplads/stats.' },
 ];
 
 router.get('/', async (req, res, next) => {

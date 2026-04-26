@@ -272,6 +272,92 @@ CREATE TABLE IF NOT EXISTS helligdage (
 
 CREATE INDEX IF NOT EXISTS idx_helligdage_dato ON helligdage(dato);
 
+-- UC-57 Samtykker + kommunikationskanaler — pr. kunde valg af SMS/mail/Digital Post.
+CREATE TABLE IF NOT EXISTS samtykker (
+  id              SERIAL PRIMARY KEY,
+  kunde_id        TEXT NOT NULL REFERENCES kunder(id) ON DELETE CASCADE,
+  type            TEXT NOT NULL,                          -- 'fakturalevering' | 'driftspaamindelse' | 'marketing' | 'sorteringsscore' | 'gdpr'
+  kanal           TEXT NOT NULL,                          -- 'eboks' | 'email' | 'sms' | 'app' | 'papir'
+  status          BOOLEAN NOT NULL DEFAULT TRUE,
+  opdateret       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(kunde_id, type, kanal)
+);
+
+-- UC-56 Fuldmagter — ejer giver adgang til ægtefælle/vicevært/kollega.
+CREATE TABLE IF NOT EXISTS fuldmagter (
+  id              SERIAL PRIMARY KEY,
+  ejer_kunde_id   TEXT NOT NULL REFERENCES kunder(id) ON DELETE CASCADE,
+  agent_kunde_id  TEXT NOT NULL REFERENCES kunder(id) ON DELETE CASCADE,
+  rolle           TEXT NOT NULL,                          -- 'fuld' | 'kun_se' | 'service_kun'
+  gyldig_fra      DATE NOT NULL DEFAULT CURRENT_DATE,
+  gyldig_til      DATE,
+  noter           TEXT,
+  oprettet        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_fuldmagter_agent ON fuldmagter(agent_kunde_id);
+CREATE INDEX IF NOT EXISTS idx_fuldmagter_ejer  ON fuldmagter(ejer_kunde_id);
+
+-- UC-55 Boligadministrator-portal — én admin-kunde har adgang til mange ejendomme.
+CREATE TABLE IF NOT EXISTS boligadm_relationer (
+  id              SERIAL PRIMARY KEY,
+  admin_kunde_id  TEXT NOT NULL REFERENCES kunder(id) ON DELETE CASCADE,
+  ejendom_id      TEXT NOT NULL REFERENCES ejendomme(id) ON DELETE CASCADE,
+  rolle           TEXT NOT NULL DEFAULT 'administrator',  -- 'administrator' | 'samlet_betaler' | 'kun_se'
+  oprettet        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(admin_kunde_id, ejendom_id)
+);
+CREATE INDEX IF NOT EXISTS idx_boligadm_admin ON boligadm_relationer(admin_kunde_id);
+
+-- UC-63 Standardbreve / skabeloner.
+CREATE TABLE IF NOT EXISTS brev_skabeloner (
+  id              TEXT PRIMARY KEY,
+  navn            TEXT NOT NULL,
+  emne            TEXT NOT NULL,
+  body            TEXT NOT NULL,                          -- understøtter {{kunde_navn}}, {{fakturanr}}, osv.
+  kategori        TEXT,                                   -- 'rykker' | 'velkomst' | 'fakturatvist' | 'afslag' | 'godkendelse'
+  oprettet        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Sendte breve med flettet indhold pr. kunde (audit).
+CREATE TABLE IF NOT EXISTS sendte_breve (
+  id              SERIAL PRIMARY KEY,
+  skabelon_id     TEXT REFERENCES brev_skabeloner(id),
+  kunde_id        TEXT NOT NULL REFERENCES kunder(id) ON DELETE CASCADE,
+  sag_id          TEXT REFERENCES sager(id),
+  emne            TEXT NOT NULL,
+  body            TEXT NOT NULL,
+  kanal           TEXT NOT NULL,                          -- 'eboks' | 'email' | 'sms'
+  sendt           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  bruger          TEXT
+);
+
+-- UC-50 Genbrugsplads-besøg (erhverv betaler pr. besøg).
+CREATE TABLE IF NOT EXISTS genbrugsplads_besog (
+  id              SERIAL PRIMARY KEY,
+  kunde_id        TEXT NOT NULL REFERENCES kunder(id),
+  ejendom_id      TEXT REFERENCES ejendomme(id),
+  dato            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  registrering    TEXT,                                   -- 'nummerplade' | 'brik' | 'manuel'
+  identifikator   TEXT,                                   -- nummerplade eller brik-id
+  vægt_kg         NUMERIC(10,2),
+  fraktion_id     TEXT REFERENCES fraktioner(id),
+  pris            NUMERIC(12,2),
+  faktureret      BOOLEAN NOT NULL DEFAULT FALSE,
+  noter           TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_gbp_kunde ON genbrugsplads_besog(kunde_id);
+CREATE INDEX IF NOT EXISTS idx_gbp_dato ON genbrugsplads_besog(dato);
+
+-- UC-53 Pay-as-you-throw — afregningsmodel pr. prisblad.
+ALTER TABLE prisblade ADD COLUMN IF NOT EXISTS afregningsmodel TEXT NOT NULL DEFAULT 'volumen';
+-- Værdier: 'volumen' (default — pr. tømning) | 'vægt' (pay-as-you-throw, kr/kg)
+
+-- UC-52 Haveaffald sæsonabonnement.
+ALTER TABLE kontrakter ADD COLUMN IF NOT EXISTS abonnement_type TEXT;
+-- 'standard' | 'haveaffald_saeson' | 'storskrald_aar' | 'farligt_aar'
+ALTER TABLE kontrakter ADD COLUMN IF NOT EXISTS saeson_fra DATE;
+ALTER TABLE kontrakter ADD COLUMN IF NOT EXISTS saeson_til DATE;
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- TRIGRAM-INDEKSER — gør ILIKE '%foo%' hurtig på store tabeller.
 -- Bruges af søgebaren og listefilter.
