@@ -48,10 +48,13 @@ async function init() {
   _initPromise = (async () => {
     await runSchemaFile('core.sql');
     await runSchemaFile('renovation.sql');
+    await runSchemaFile('spildevand.sql');
     const seed = require('./db/seed');
     await seed(pool);
     const richSeed = require('./db/rich-seed');
     await richSeed(pool);
+    const bigSeed = require('./db/big-seed');
+    await bigSeed(pool);
   })().catch((e) => {
     _initPromise = null;
     throw e;

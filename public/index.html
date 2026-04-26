@@ -217,17 +217,24 @@ const main = document.getElementById('main');
 // 5 personas til simulering. Valg gemmes i localStorage så det overlever reload.
 // ─────────────────────────────────────────────────────────────────────
 const BRUGERE = [
-  { id: 'anna',     navn: 'Anna Andersen',     initialer: 'AA', farve: '#2563eb', rolle: 'driftskoordinator' },
+  // Drift-personas — én pr. domæne (ikke blandet)
+  { id: 'anna',     navn: 'Anna Andersen',     initialer: 'AA', farve: '#2563eb', rolle: 'drift_renovation' },
+  { id: 'erik',     navn: 'Erik Eriksen',      initialer: 'EE', farve: '#0891b2', rolle: 'drift_spildevand' },
+  // Afregning og support kan se begge domæner
   { id: 'bo',       navn: 'Bo Bertelsen',      initialer: 'BB', farve: '#059669', rolle: 'afregningsansvarlig' },
   { id: 'camilla',  navn: 'Camilla Christensen', initialer: 'CC', farve: '#d97706', rolle: 'kundesupport' },
   { id: 'david',    navn: 'David Dahl',        initialer: 'DD', farve: '#7c3aed', rolle: 'leder' },
-  { id: 'borger-1', navn: 'Anders Madsen (borger)', initialer: 'AM', farve: '#ef4444', rolle: 'borger', kunde_id: 'KU-DEMO01' },
+  // Zerv-personas — borgere med forskellige domæne-kombinationer
+  { id: 'zerv-renov', navn: 'Anders Madsen (Zerv · kun renovation)',  initialer: 'AM', farve: '#ef4444', rolle: 'zerv', kunde_id: 'KU-DEMO01' },
+  { id: 'zerv-spild', navn: 'Holstebro Plejehjem (Zerv · kun spildevand)', initialer: 'HP', farve: '#f97316', rolle: 'zerv', kunde_id: 'KU-RICH03' },
+  { id: 'zerv-begge', navn: 'Kasper Hansen (Zerv · begge)',            initialer: 'KH', farve: '#ec4899', rolle: 'zerv', kunde_id: 'KU-RICH01' },
 ];
 
 const ROLLER = {
-  driftskoordinator: {
-    titel: 'Driftskoordinator', icon: '🚛',
+  drift_renovation: {
+    titel: 'Drift · Renovation', icon: '🚛',
     beskrivelse: 'Tømninger, beholdere, sager om manglende tømning, ADS-indberetning',
+    domain: 'renovation',
     default_view: 'dashboard',
     menu: [
       { section: '📊 Drift-overblik', items: [
@@ -244,6 +251,25 @@ const ROLLER = {
       ]},
       { section: '📤 Indberetninger', items: [
         { view: 'ads',               icon: '📤', label: 'ADS (Miljøstyrelsen)' },
+      ]},
+    ],
+  },
+  drift_spildevand: {
+    titel: 'Drift · Spildevand', icon: '💧',
+    beskrivelse: 'Vandmålere, aflæsninger, anomalier, fjernaflæsnings-events',
+    domain: 'spildevand',
+    default_view: 'dashboard',
+    menu: [
+      { section: '📊 Drift-overblik', items: [
+        { view: 'dashboard',         icon: '🏠', label: 'Dashboard' },
+        { view: 'sager',             icon: '📞', label: 'Sager (spildevand)' },
+        { view: 'kunder',            icon: '👥', label: 'Søg kunde' },
+      ]},
+      { section: '💧 Målere & forbrug', items: [
+        { view: 'maalere',           icon: '🔢', label: 'Vandmålere' },
+        { view: 'aflaesninger',      icon: '📈', label: 'Aflæsninger' },
+        { view: 'anomalier',         icon: '⚠️', label: 'Anomalier (lækage)' },
+        { view: 'aconto',            icon: '📆', label: 'Acontoplaner' },
       ]},
     ],
   },
@@ -264,8 +290,13 @@ const ROLLER = {
         { view: 'kommunal',          icon: '🏛️', label: 'Kommunal opkrævning' },
         { view: 'erp',               icon: '📊', label: 'ERP-eksport' },
       ]},
+      { section: '💧 Spildevand-afregning', items: [
+        { view: 'maalere',           icon: '🔢', label: 'Vandmålere' },
+        { view: 'aflaesninger',      icon: '📈', label: 'Aflæsninger' },
+        { view: 'aconto',            icon: '📆', label: 'Acontoplaner' },
+      ]},
       { section: '⚖️ Regulering & priser', items: [
-        { view: 'prisblade',         icon: '💰', label: 'Prisblade' },
+        { view: 'prisblade',         icon: '💰', label: 'Prisblade (begge dom.)' },
         { view: 'varslinger',        icon: '📨', label: 'Massevarslinger' },
       ]},
       { section: '👥 Søg', items: [
@@ -288,13 +319,23 @@ const ROLLER = {
         { view: 'brevskabeloner',    icon: '✉️', label: 'Brevskabeloner' },
         { view: 'sortering',         icon: '♻️', label: 'Sorteringsguide' },
       ]},
-      { section: '📱 Selvbetjening', items: [
-        { view: 'zerv',              icon: '📱', label: 'Zerv test-portal' },
-      ]},
-      { section: '🔍 Drift-data (læs)', items: [
+      { section: '🔍 Drift-data (læs, begge domæner)', items: [
         { view: 'tomninger',         icon: '📅', label: 'Tømninger' },
         { view: 'beholdere',         icon: '🗑️', label: 'Beholdere' },
+        { view: 'maalere',           icon: '🔢', label: 'Vandmålere' },
+        { view: 'aflaesninger',      icon: '📈', label: 'Aflæsninger' },
         { view: 'fakturaer',         icon: '🧾', label: 'Fakturaer' },
+      ]},
+    ],
+  },
+  zerv: {
+    titel: 'Zerv selvbetjening', icon: '📱',
+    beskrivelse: 'Borger-portal — hver kunde ser kun sine egne data + valgt(e) domæner',
+    default_view: 'zerv',
+    menu: [
+      { section: '👤 Min konto', items: [
+        { view: 'zerv',              icon: '📱', label: 'Min konto (oversigt)' },
+        { view: 'sortering',         icon: '♻️', label: 'Sorteringsguide' },
       ]},
     ],
   },
@@ -322,20 +363,11 @@ const ROLLER = {
         { view: 'sager',             icon: '📞', label: 'Sager' },
         { view: 'fakturaer',         icon: '🧾', label: 'Fakturaer' },
         { view: 'tomninger',         icon: '📅', label: 'Tømninger' },
+        { view: 'maalere',           icon: '🔢', label: 'Vandmålere' },
+        { view: 'aflaesninger',      icon: '📈', label: 'Aflæsninger' },
         { view: 'webhook',           icon: '🔌', label: 'Webhook-log' },
         { view: 'ads',               icon: '📤', label: 'ADS-indberetning' },
         { view: 'varslinger',        icon: '📨', label: 'Varslinger' },
-      ]},
-    ],
-  },
-  borger: {
-    titel: 'Borger (Zerv)', icon: '👤',
-    beskrivelse: 'Selvbetjening: min konto, bestillinger, fakturaoversigt',
-    default_view: 'zerv',
-    menu: [
-      { section: '👤 Min side', items: [
-        { view: 'zerv',              icon: '📱', label: 'Min konto' },
-        { view: 'sortering',         icon: '♻️', label: 'Sorteringsguide' },
       ]},
     ],
   },
@@ -452,8 +484,8 @@ function parseHash() {
   const r = aktivRolle();
   const [view, qs] = (location.hash.slice(1) || r.default_view).split('?');
   const params = Object.fromEntries(new URLSearchParams(qs || ''));
-  // Borger-rollen har auto-login som specifik kunde i Zerv-viewet.
-  if (aktivBruger().rolle === 'borger' && view === 'zerv' && aktivBruger().kunde_id && !params.kunde) {
+  // Zerv-rollen har auto-login som specifik kunde i Zerv-viewet.
+  if (aktivBruger().rolle === 'zerv' && view === 'zerv' && aktivBruger().kunde_id && !params.kunde) {
     params.kunde = aktivBruger().kunde_id;
   }
   go(view, params);
@@ -2953,6 +2985,290 @@ views.brevskabeloner = async () => {
       <table>
         <thead><tr><th>ID</th><th>Navn</th><th>Kategori</th><th>Emne</th></tr></thead>
         <tbody>${list.map(s => `<tr><td><code>${s.id}</code></td><td><strong>${s.navn}</strong></td><td>${badge('blue', s.kategori || '—')}</td><td style="font-size:12px;color:var(--muted)">${s.emne}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// SPILDEVAND VIEWS — vandmålere, aflæsninger, anomalier, aconto
+// ─────────────────────────────────────────────────────────────────────
+views.maalere = async (params) => {
+  if (params.id) return showMaaler(params.id);
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 50;
+  const q = params.q || '';
+  const status = params.status || '';
+  const qs = new URLSearchParams({ offset, limit, ...(q && {q}), ...(status && {status}) });
+  const data = await api('/spildevand/maalere?' + qs);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Vandmålere</div><div class="page-sub">${fmtNum(data.total)} målere${q ? ` matcher "${q}"` : ''}</div></div>
+    </div>
+    <div class="toolbar">
+      <input id="m-q" type="text" placeholder="Søg målernr, kunde, adresse…" value="${q}">
+      <select id="m-status"><option value="">Alle status</option>
+        <option value="aktiv" ${status==='aktiv'?'selected':''}>Aktiv</option>
+        <option value="defekt" ${status==='defekt'?'selected':''}>Defekt</option>
+        <option value="udskiftet" ${status==='udskiftet'?'selected':''}>Udskiftet</option>
+        <option value="nedtaget" ${status==='nedtaget'?'selected':''}>Nedtaget</option>
+      </select>
+      <button class="btn" id="m-apply">Filtrer</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Målernr</th><th>Fabrikat</th><th>Type</th><th>Kunde</th><th>Adresse</th><th style="text-align:right">Sidste stand</th><th>Sidst aflæst</th><th>Status</th></tr></thead>
+        <tbody>${data.rows.length ? data.rows.map(m => `
+          <tr class="clickable" onclick="go('maalere',{id:'${m.id}'})">
+            <td><strong>${m.maalernummer}</strong>${m.fjernaflaest ? ' <span class="badge badge-blue">📡</span>' : ''}</td>
+            <td>${m.fabrikat || '—'}</td>
+            <td>${m.type}</td>
+            <td>${m.kunde_navn || '—'}</td>
+            <td>${m.vejnavn || ''} ${m.husnr || ''}, ${m.postnr || ''} ${m.by || ''}</td>
+            <td style="text-align:right">${m.sidste_stand ? Number(m.sidste_stand).toFixed(2) + ' m³' : '—'}</td>
+            <td>${m.sidste_aflaesning_dato ? fmtDate(m.sidste_aflaesning_dato) : '—'}</td>
+            <td>${badge(m.status === 'aktiv' ? 'green' : m.status === 'defekt' ? 'red' : 'gray', m.status)}</td>
+          </tr>`).join('') : '<tr><td colspan="8" class="empty">Ingen målere matcher</td></tr>'}</tbody>
+      </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
+    </div>
+  `;
+  document.getElementById('m-apply').onclick = () => {
+    const next = { offset: 0 };
+    if (document.getElementById('m-q').value.trim()) next.q = document.getElementById('m-q').value.trim();
+    if (document.getElementById('m-status').value) next.status = document.getElementById('m-status').value;
+    go('maalere', next);
+  };
+  bindPagination(main, data.total, offset, limit, (no) => go('maalere', { ...params, offset: no }));
+};
+
+async function showMaaler(id) {
+  const m = await api('/spildevand/maalere/' + id);
+  main.innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">${m.maalernummer}</div>
+        <div class="page-sub">${m.fabrikat || ''} · ${m.type} · ${m.dimension || ''}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="newAflaesning('${m.id}')">+ Aflæsning</button>
+        <button class="btn" onclick="udskiftMaaler('${m.id}','${m.maalernummer}')">Udskift måler</button>
+        <button class="btn" onclick="go('maalere')">← Tilbage</button>
+      </div>
+    </div>
+    <div class="split">
+      <div class="card">
+        <div class="card-title">Måler</div>
+        <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value">${badge(m.status === 'aktiv' ? 'green' : 'gray', m.status)}</div></div>
+        <div class="detail-row"><div class="detail-label">Fabrikat</div><div class="detail-value">${m.fabrikat || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value">${m.type}${m.fjernaflaest ? ' 📡' : ''}</div></div>
+        <div class="detail-row"><div class="detail-label">Dimension</div><div class="detail-value">${m.dimension || '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Installeret</div><div class="detail-value">${fmtDate(m.installeret)}</div></div>
+        ${m.nedtaget ? `<div class="detail-row"><div class="detail-label">Nedtaget</div><div class="detail-value">${fmtDate(m.nedtaget)}</div></div>` : ''}
+        <div class="detail-row"><div class="detail-label">Fjernaflæst</div><div class="detail-value">${m.fjernaflaest ? 'Ja' : 'Nej'}</div></div>
+        <div class="detail-row"><div class="detail-label">Fradragsmåler</div><div class="detail-value">${m.fradragsmaaler ? 'Ja (havevanding)' : 'Nej'}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Kunde &amp; ejendom</div>
+        <div class="detail-row"><div class="detail-label">Kunde</div><div class="detail-value">${m.kunde_navn ? `<a style="color:var(--accent);cursor:pointer" onclick="go('kunder',{id:'${m.kunde_id}',tab:'spildevand'})">${m.kunde_navn}</a>` : '—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Adresse</div><div class="detail-value">${m.vejnavn || ''} ${m.husnr || ''}, ${m.postnr || ''} ${m.by || ''}</div></div>
+        ${m.bimaalere && m.bimaalere.length ? `<div class="detail-row"><div class="detail-label">Bimålere</div><div class="detail-value">${m.bimaalere.map(b => b.maalernummer).join(', ')}</div></div>` : ''}
+      </div>
+    </div>
+    <div class="section-title">Aflæsninger (${m.aflaesninger.length})</div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th style="text-align:right">Stand (m³)</th><th>Forbrug</th><th>Kilde</th><th>Validering</th><th>Note</th></tr></thead>
+        <tbody>${m.aflaesninger.length ? m.aflaesninger.map((a, i) => {
+          const prev = m.aflaesninger[i + 1];
+          const forbrug = prev ? Number(a.stand_m3) - Number(prev.stand_m3) : null;
+          return `<tr>
+            <td><strong>${fmtDate(a.dato)}</strong></td>
+            <td style="text-align:right">${Number(a.stand_m3).toFixed(2)}</td>
+            <td>${forbrug != null ? forbrug.toFixed(2) + ' m³' : '—'}</td>
+            <td>${a.kilde}</td>
+            <td>${a.validering === 'flagget' ? '<span class="badge badge-orange">⚠ flagget</span>' : a.validering === 'estimat' ? '<span class="badge badge-yellow">estimat</span>' : '<span class="badge badge-green">OK</span>'}</td>
+            <td style="font-size:11px;color:var(--muted)">${a.noter || '—'}</td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="6" class="empty">Ingen aflæsninger registreret</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+window.newAflaesning = function(maalerId) {
+  const today = new Date().toISOString().slice(0, 10);
+  openModal('Registrér aflæsning', `
+    <div class="form-grid">
+      <div class="form-row"><label>Dato *</label><input type="date" id="afl-dato" value="${today}"></div>
+      <div class="form-row"><label>Stand (m³) *</label><input type="number" step="0.001" id="afl-stand"></div>
+      <div class="form-row"><label>Kilde</label><select id="afl-kilde">
+        <option value="manuel">Manuel</option>
+        <option value="kunde">Kunde-indberetning</option>
+        <option value="estimat">Estimat</option>
+      </select></div>
+      <div class="form-row"><label>Aflæser</label><input id="afl-aflaeser" placeholder="Navn"></div>
+    </div>
+    <div class="form-row"><label>Note</label><textarea id="afl-note"></textarea></div>
+  `, async () => {
+    const r = await api('/spildevand/aflaesninger', { method: 'POST', body: JSON.stringify({
+      maaler_id: maalerId,
+      dato: document.getElementById('afl-dato').value,
+      stand_m3: parseFloat(document.getElementById('afl-stand').value),
+      kilde: document.getElementById('afl-kilde').value,
+      aflaeser: document.getElementById('afl-aflaeser').value || null,
+      noter: document.getElementById('afl-note').value || null,
+    }) });
+    closeModal();
+    if (r.anomali) toast('Aflæsning registreret — flagget som anomali', 'error');
+    else toast('Aflæsning registreret', 'success');
+    go('maalere', { id: maalerId });
+  });
+};
+
+window.udskiftMaaler = function(id, oldNr) {
+  openModal('Udskift måler ' + oldNr, `
+    <div class="alert alert-info">Den gamle måler markeres som "udskiftet". Slut-aflæsning gemmes.</div>
+    <div class="form-grid">
+      <div class="form-row"><label>Slut-stand (gammel)</label><input type="number" step="0.001" id="us-slut"></div>
+      <div class="form-row"><label>Ny målernr *</label><input id="us-ny"></div>
+      <div class="form-row"><label>Ny start-stand</label><input type="number" step="0.001" id="us-start" value="0"></div>
+      <div class="form-row"><label>Dato</label><input type="date" id="us-dato" value="${new Date().toISOString().slice(0, 10)}"></div>
+    </div>
+  `, async () => {
+    const r = await api(`/spildevand/maalere/${id}/udskift`, { method: 'POST', body: JSON.stringify({
+      ny_maalernummer: document.getElementById('us-ny').value,
+      slut_stand_m3: parseFloat(document.getElementById('us-slut').value || '0'),
+      ny_start_stand_m3: parseFloat(document.getElementById('us-start').value || '0'),
+      dato: document.getElementById('us-dato').value,
+    }) });
+    closeModal();
+    toast('Udskiftning gennemført — ny måler ' + r.ny_maaler_id, 'success');
+    go('maalere', { id: r.ny_maaler_id });
+  });
+};
+
+views.aflaesninger = async (params) => {
+  const offset = parseInt(params.offset || '0', 10);
+  const limit = 100;
+  const validering = params.validering || '';
+  const kilde = params.kilde || '';
+  const qs = new URLSearchParams({ offset, limit, ...(validering && { validering }), ...(kilde && { kilde }) });
+  const data = await api('/spildevand/aflaesninger?' + qs);
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Aflæsninger</div><div class="page-sub">${fmtNum(data.total)} aflæsninger</div></div>
+      <button class="btn" onclick="aarsskifteEstimat()">Generér årsskifte-estimat</button>
+    </div>
+    <div class="toolbar">
+      <select id="afl-validering"><option value="">Alle valideringer</option>
+        <option value="gyldig" ${validering==='gyldig'?'selected':''}>Gyldig</option>
+        <option value="flagget" ${validering==='flagget'?'selected':''}>Flagget</option>
+        <option value="korrigeret" ${validering==='korrigeret'?'selected':''}>Korrigeret</option>
+        <option value="estimat" ${validering==='estimat'?'selected':''}>Estimat</option>
+      </select>
+      <select id="afl-kilde"><option value="">Alle kilder</option>
+        <option value="manuel" ${kilde==='manuel'?'selected':''}>Manuel</option>
+        <option value="kunde" ${kilde==='kunde'?'selected':''}>Kunde</option>
+        <option value="fjernaflaest" ${kilde==='fjernaflaest'?'selected':''}>Fjernaflæst</option>
+        <option value="estimat" ${kilde==='estimat'?'selected':''}>Estimat</option>
+      </select>
+      <button class="btn" id="afl-apply">Filtrer</button>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th>Måler</th><th>Kunde</th><th>Adresse</th><th style="text-align:right">Stand</th><th>Kilde</th><th>Validering</th></tr></thead>
+        <tbody>${data.rows.length ? data.rows.map(a => `
+          <tr class="clickable" onclick="go('maalere',{id:'${a.maaler_id}'})">
+            <td>${fmtDate(a.dato)}</td>
+            <td>${a.maalernummer}</td>
+            <td>${a.kunde_navn || '—'}</td>
+            <td>${a.vejnavn || ''} ${a.husnr || ''}</td>
+            <td style="text-align:right">${Number(a.stand_m3).toFixed(2)} m³</td>
+            <td>${a.kilde}</td>
+            <td>${a.validering === 'flagget' ? '<span class="badge badge-orange">⚠</span>' : a.validering === 'estimat' ? '<span class="badge badge-yellow">est</span>' : '<span class="badge badge-green">OK</span>'}</td>
+          </tr>`).join('') : '<tr><td colspan="7" class="empty">Ingen aflæsninger matcher</td></tr>'}</tbody>
+      </table>
+      ${data.total > limit ? renderPagination(data.total, offset, limit) : ''}
+    </div>
+  `;
+  document.getElementById('afl-apply').onclick = () => {
+    const next = { offset: 0 };
+    if (document.getElementById('afl-validering').value) next.validering = document.getElementById('afl-validering').value;
+    if (document.getElementById('afl-kilde').value) next.kilde = document.getElementById('afl-kilde').value;
+    go('aflaesninger', next);
+  };
+  bindPagination(main, data.total, offset, limit, (no) => go('aflaesninger', { ...params, offset: no }));
+};
+
+window.aarsskifteEstimat = async function() {
+  const aar = prompt('Generér årsskifte-estimat for hvilket år?', String(new Date().getFullYear() + 1));
+  if (!aar) return;
+  const r = await api('/spildevand/aflaesninger/aarsskifte-estimat', { method: 'POST', body: JSON.stringify({ aar: parseInt(aar, 10) }) });
+  toast(`${r.oprettet} estimater oprettet for ${r.aar}`, 'success');
+  go('aflaesninger', { kilde: 'estimat' });
+};
+
+views.anomalier = async () => {
+  const d = await api('/spildevand/anomalier');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Anomalier &amp; lækage-mistanke</div><div class="page-sub">${d.flagget.length} flaggede aflæsninger · ${d.manglende.length} målere uden aflæsning &gt;90 dage</div></div>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px">
+      <div class="card"><div class="card-title">Flaggede aflæsninger</div><div class="card-value" style="color:${d.flagget.length?'var(--orange)':'var(--green)'}">${d.flagget.length}</div></div>
+      <div class="card"><div class="card-title">Manglende aflæsning</div><div class="card-value" style="color:${d.manglende.length?'var(--red)':'var(--green)'}">${d.manglende.length}</div></div>
+    </div>
+    <div class="section-title">⚠ Flaggede aflæsninger (mulig lækage eller måler-fejl)</div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Dato</th><th>Måler</th><th>Kunde</th><th style="text-align:right">Stand</th><th>Note</th></tr></thead>
+        <tbody>${d.flagget.length ? d.flagget.map(a => `
+          <tr class="clickable" onclick="go('maalere',{id:'${a.maaler_id}'})">
+            <td>${fmtDate(a.dato)}</td>
+            <td>${a.maalernummer}</td>
+            <td>${a.kunde_navn || '—'}</td>
+            <td style="text-align:right">${Number(a.stand_m3).toFixed(2)} m³</td>
+            <td style="color:var(--orange);font-size:11px">${a.noter || '—'}</td>
+          </tr>`).join('') : '<tr><td colspan="5" class="empty">Ingen flag 🎉</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div class="section-title">📭 Målere uden aflæsning &gt; 90 dage</div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>Målernr</th><th>Fabrikat</th><th>Kunde</th><th>Sidste aflæsning</th></tr></thead>
+        <tbody>${d.manglende.length ? d.manglende.map(m => `
+          <tr class="clickable" onclick="go('maalere',{id:'${m.id}'})">
+            <td>${m.maalernummer}</td>
+            <td>${m.fabrikat || '—'}</td>
+            <td>${m.kunde_navn || '—'}</td>
+            <td>${m.sidste_dato ? fmtDate(m.sidste_dato) : '<span style="color:var(--red)">aldrig</span>'}</td>
+          </tr>`).join('') : '<tr><td colspan="4" class="empty">Alle målere er aktuelle 🎉</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+views.aconto = async () => {
+  const list = await api('/spildevand/aconto');
+  main.innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Acontoplaner</div><div class="page-sub">${list.length} planer</div></div>
+    </div>
+    <div class="card" style="padding:0">
+      <table>
+        <thead><tr><th>ID</th><th>Kunde</th><th>År</th><th style="text-align:right">Forventet m³</th><th style="text-align:right">Estimeret beløb</th><th style="text-align:right">Pr. rate</th><th>Rater</th><th>Status</th></tr></thead>
+        <tbody>${list.length ? list.map(a => `
+          <tr class="clickable" onclick="go('kunder',{id:'${a.kunde_id}',tab:'spildevand'})">
+            <td><code style="font-size:11px">${a.id}</code></td>
+            <td>${a.kunde_navn}</td>
+            <td>${a.aar}</td>
+            <td style="text-align:right">${Number(a.forventet_m3).toFixed(0)}</td>
+            <td style="text-align:right">${fmtDKK(a.estimeret_aarsbelob)} kr.</td>
+            <td style="text-align:right">${fmtDKK(a.rate_belob)} kr.</td>
+            <td>${a.antal_rater}</td>
+            <td>${badge(a.status === 'aktiv' ? 'green' : 'gray', a.status)}</td>
+          </tr>`).join('') : '<tr><td colspan="8" class="empty">Ingen acontoplaner endnu</td></tr>'}</tbody>
       </table>
     </div>
   `;

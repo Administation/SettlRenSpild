@@ -68,9 +68,8 @@ app.use('/api/renovation/beholdere', require('../routes/beholdere'));
 app.use('/api/renovation/tomninger', require('../routes/tomninger'));
 app.use('/api/renovation/ads', require('../routes/ads'));
 
-// Spildevand domæne-routes — placeholder for fremtidig udvidelse.
-// app.use('/api/spildevand/maalere', require('../routes/maalere'));
-// app.use('/api/spildevand/aflaesninger', require('../routes/aflaesninger'));
+// Spildevand domæne-routes.
+app.use('/api/spildevand', require('../routes/spildevand'));
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: 'SettlRenSpild', version: require('../package.json').version });
