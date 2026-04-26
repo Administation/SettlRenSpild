@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "settlrenspild-proxy",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const http=require('http');const https=require('https');const TARGET='https://settlrenspild.vercel.app';http.createServer((req,res)=>{const opts={hostname:'settlrenspild.vercel.app',path:req.url,method:req.method,headers:{...req.headers,host:'settlrenspild.vercel.app'}};const p=https.request(opts,(pr)=>{res.writeHead(pr.statusCode,pr.headers);pr.pipe(res)});req.pipe(p);p.on('error',(e)=>{res.statusCode=502;res.end(e.message)})}).listen(3001,()=>console.log('Proxy on :3001 → '+TARGET))"],
+      "port": 3001
+    }
+  ]
+}

@@ -462,7 +462,8 @@ function parseHash() {
 // ── DASHBOARD ──
 views.dashboard = async () => {
   const d = await api('/dashboard');
-  document.getElementById('sidebar-sager').textContent = d.abne_sager || '';
+  const sb = document.getElementById('sidebar-sager');
+  if (sb) sb.textContent = d.abne_sager || '';
   main.innerHTML = `
     <div class="page-header">
       <div>
@@ -2073,7 +2074,8 @@ function closeModal() {
 // ── USE CASES COVERAGE ──
 views.usecases = async () => {
   const d = await api('/usecases');
-  document.getElementById('sidebar-uc').textContent = `${d.stats.done}/${d.stats.total}`;
+  const sbUc = document.getElementById('sidebar-uc');
+  if (sbUc) sbUc.textContent = `${d.stats.done}/${d.stats.total}`;
   const groups = {
     stamdata: '🗃️ Stamdata',
     drift: '🚛 Drift & tømning',

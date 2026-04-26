@@ -50,6 +50,8 @@ async function init() {
     await runSchemaFile('renovation.sql');
     const seed = require('./db/seed');
     await seed(pool);
+    const richSeed = require('./db/rich-seed');
+    await richSeed(pool);
   })().catch((e) => {
     _initPromise = null;
     throw e;
