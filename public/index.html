@@ -385,19 +385,12 @@ function renderSidebar() {
   const sb = document.getElementById('sidebar');
   const rolle = aktivRolle();
   sb.innerHTML = `
-    <div style="padding:14px 22px 10px;border-bottom:1px solid var(--border);margin-bottom:8px">
-      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600">Rolle</div>
-      <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:2px">${rolle.icon} ${rolle.titel}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4">${rolle.beskrivelse}</div>
-    </div>
     ${rolle.menu.map(s => `
       <div class="sidebar-section">${s.section}</div>
       ${s.items.map(i => `
         <div class="sidebar-link" data-view="${i.view}"><span class="ico">${i.icon}</span>${i.label}</div>
       `).join('')}
     `).join('')}
-    <div class="sidebar-section">💧 Andre domæner</div>
-    <div class="sidebar-link" style="opacity:.5;cursor:not-allowed" title="Kommer i næste fase"><span class="ico">💧</span>Spildevand</div>
   `;
   // Bind klik
   sb.querySelectorAll('.sidebar-link').forEach(el => {
@@ -1698,10 +1691,6 @@ views.webhook = async (params) => {
       <div><div class="page-title">Webhook-log</div><div class="page-sub">Driftssystemers indkomne tømnings-events</div></div>
       <button class="btn" onclick="showWebhookHelp()">📖 Test-eksempel</button>
     </div>
-    <div class="alert alert-info">
-      Endpoint: <code>POST /api/renovation/webhook/tomning/{provider}</code> · Bearer-token kræves ·
-      Providers: <strong>renoweb · ivar · ambitek · generic</strong>
-    </div>
     <div class="toolbar">
       <select id="wh-provider"><option value="">Alle providers</option>
         <option value="renoweb" ${provider==='renoweb'?'selected':''}>RenoWeb</option>
@@ -2151,6 +2140,29 @@ views.usecases = async () => {
           </table>
         </div>`;
     }).join('')}
+
+    <div class="section-title" style="margin-top:32px">🔌 Løsningsbemærkninger & API-oversigt</div>
+    <div class="card" style="padding:18px 22px;font-size:13px;line-height:1.7">
+      <div style="margin-bottom:16px">
+        <strong>Renovation – webhook-integration</strong><br>
+        <span style="color:var(--muted)">Driftssystemer sender tømnings-events til:</span>
+        <code style="display:block;margin:6px 0;background:var(--surface2);padding:6px 10px;border-radius:6px;font-size:12px">POST /api/renovation/webhook/tomning/{provider}</code>
+        <span style="color:var(--muted)">Bearer-token kræves. Providers: <strong>renoweb · ivar · ambitek · generic</strong></span>
+      </div>
+      <div style="margin-bottom:16px">
+        <strong>Zerv selvbetjenings-API</strong><br>
+        <span style="color:var(--muted)">Zerv-portalen kalder disse endpoints på vegne af logget-ind kunde:</span>
+        <code style="display:block;margin:6px 0;background:var(--surface2);padding:6px 10px;border-radius:6px;font-size:12px">/api/zerv/min-konto · /kalender · /reklamation · /ekstra-tomning · /storskrald · /kalender.ics</code>
+      </div>
+      <div>
+        <strong>Generelle bemærkninger</strong><br>
+        <ul style="color:var(--muted);margin:6px 0 0 18px;padding:0">
+          <li>Alle kundeopslag kræver gyldig session / Bearer-token</li>
+          <li>Spildevand-kontrakter bruger separate prisblade og afregningslogik</li>
+          <li>Zerv-portalen filtrerer automatisk efter kundens aktive domæner (renovation / spildevand)</li>
+        </ul>
+      </div>
+    </div>
   `;
 };
 
@@ -2562,31 +2574,82 @@ views.erp = async () => {
 
 // ── ZERV TEST-PORTAL (UC-27) ──
 views.zerv = async (params) => {
-  // Brug enten valgt kunde eller den første demo-kunde.
+  const bruger = aktivBruger();
   const kunder = (await api('/kunder?limit=10')).rows;
-  const kundeId = params.kunde || (kunder[0] && kunder[0].id);
+  const kundeId = params.kunde || bruger.kunde_id || (kunder[0] && kunder[0].id);
   if (!kundeId) {
     main.innerHTML = '<div class="empty">Ingen kunder fundet</div>'; return;
   }
-  // Kald zerv-API'en med kunde-id som mock Bearer-token.
+
   const minKonto = await fetch('/api/zerv/min-konto', { headers: { Authorization: 'Bearer ' + kundeId } }).then(r => r.json());
-  const kalender = await fetch('/api/zerv/kalender', { headers: { Authorization: 'Bearer ' + kundeId } }).then(r => r.json());
+  const kontrakter = minKonto.kontrakter || [];
+  const harRenovation = kontrakter.some(k => k.service_type === 'renovation' && k.status === 'aktiv');
+  const harSpildevand = kontrakter.some(k => k.service_type === 'spildevand' && k.status === 'aktiv');
+
+  // Demo-personas låser synlighed til ét domæne selv om kunden har begge.
+  const visRenovation = harRenovation && bruger.id !== 'zerv-spild';
+  const visSpildevand = harSpildevand && bruger.id !== 'zerv-renov';
+
+  const [kalender, maalere] = await Promise.all([
+    visRenovation
+      ? fetch('/api/zerv/kalender', { headers: { Authorization: 'Bearer ' + kundeId } }).then(r => r.json())
+      : Promise.resolve([]),
+    visSpildevand
+      ? (() => {
+          const ids = kontrakter.filter(k => k.service_type === 'spildevand').map(k => k.id);
+          return ids.length
+            ? Promise.all(ids.map(kid => api(`/spildevand/maalere?kontrakt_id=${kid}&limit=5`))).then(rs => rs.flatMap(r => r.rows || []))
+            : Promise.resolve([]);
+        })()
+      : Promise.resolve([]),
+  ]);
+
+  const domainBadges = [
+    visRenovation ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#fef3c7;color:#92400e">🚛 Renovation</span>` : '',
+    visSpildevand ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af">💧 Spildevand</span>` : '',
+  ].filter(Boolean).join(' ');
+
   main.innerHTML = `
     <div class="page-header">
-      <div><div class="page-title">Zerv selvbetjenings-portal</div><div class="page-sub">Test-visning af kunde-API · Bearer-token = kunde-ID</div></div>
+      <div>
+        <div class="page-title">Zerv selvbetjenings-portal</div>
+        <div class="page-sub" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          Test-visning · Bearer-token = kunde-ID
+          ${domainBadges ? '<span>' + domainBadges + '</span>' : ''}
+        </div>
+      </div>
       <select id="zv-pick" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit">
         ${kunder.map(k => `<option value="${k.id}" ${k.id===kundeId?'selected':''}>${k.navn} (${k.id})</option>`).join('')}
       </select>
     </div>
-    <div class="alert alert-info">Disse endpoints kalder Zerv-portalen på vegne af en logget-ind kunde. Endpoints: <code>/api/zerv/min-konto · /kalender · /reklamation · /ekstra-tomning · /storskrald · /kalender.ics</code></div>
-    <div class="split">
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">${minKonto.kunde?.navn || 'Min konto'}</div>
+      <div style="display:flex;gap:32px;flex-wrap:wrap">
+        <div><div class="detail-label">Type</div><div class="detail-value">${minKonto.kunde?.type || '—'}</div></div>
+        <div><div class="detail-label">Kontrakter</div><div class="detail-value">${kontrakter.length}</div></div>
+        <div><div class="detail-label">Fakturaer</div><div class="detail-value">${minKonto.fakturaer?.length || 0}</div></div>
+        <div><div class="detail-label">E-mail</div><div class="detail-value">${minKonto.kunde?.email || '—'}</div></div>
+      </div>
+    </div>
+
+    ${visRenovation ? `
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+      <span style="background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:8px;font-size:13px;font-weight:700">🚛 Renovation</span>
+    </div>
+    <div class="split" style="margin-bottom:24px">
       <div class="card">
-        <div class="card-title">${minKonto.kunde?.navn || 'Min konto'}</div>
-        <div class="detail-row"><div class="detail-label">Type</div><div class="detail-value">${minKonto.kunde?.type || '—'}</div></div>
-        <div class="detail-row"><div class="detail-label">Kontrakter</div><div class="detail-value">${minKonto.kontrakter?.length || 0}</div></div>
-        <div class="detail-row"><div class="detail-label">Beholdere</div><div class="detail-value">${minKonto.beholdere?.length || 0}</div></div>
-        <div class="detail-row"><div class="detail-label">Fakturaer</div><div class="detail-value">${minKonto.fakturaer?.length || 0}</div></div>
-        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <div class="card-title">Beholdere & service</div>
+        <div style="margin-bottom:12px">
+          ${(minKonto.beholdere || []).length
+            ? (minKonto.beholdere || []).map(b => `
+              <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                <span><span class="dot" style="background:${b.farve||'#999'}"></span>${b.fraktion_navn}</span>
+                <span style="color:var(--muted);font-size:12px">${b.volumen_l}L · ${b.frekvens}</span>
+              </div>`).join('')
+            : '<div class="empty">Ingen beholdere</div>'}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
           <button class="btn btn-primary" onclick="zervReklamation('${kundeId}')">Indberet reklamation</button>
           <button class="btn" onclick="zervEkstra('${kundeId}')">Bestil ekstra tømning</button>
           <button class="btn" onclick="zervStorskrald('${kundeId}')">Bestil storskrald</button>
@@ -2600,7 +2663,47 @@ views.zerv = async (params) => {
           <strong>${fmtDate(t.planlagt_dato)}</strong> — ${t.fraktion_navn} ${t.volumen_l}L
         </div>`).join('') : '<div class="empty">Ingen planlagte tømninger</div>'}
       </div>
+    </div>` : ''}
+
+    ${visSpildevand ? `
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px">
+      <span style="background:#dbeafe;color:#1e40af;padding:3px 12px;border-radius:8px;font-size:13px;font-weight:700">💧 Spildevand</span>
     </div>
+    <div class="split" style="margin-bottom:24px">
+      <div class="card">
+        <div class="card-title">Vandmålere</div>
+        ${maalere.length ? maalere.map(m => `
+          <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>${m.maalernummer}</strong>
+              <span class="status-badge status-${m.status||'aktiv'}">${m.status||'aktiv'}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-top:3px">
+              ${m.vejnavn||''} ${m.husnr||''} · Sidst aflæst: ${m.sidste_aflaesning_dato ? fmtDate(m.sidste_aflaesning_dato) : '—'}${m.sidste_stand != null ? ' · ' + m.sidste_stand + ' m³' : ''}
+            </div>
+          </div>`).join('')
+          : '<div class="empty">Ingen vandmålere registreret</div>'}
+        <div style="margin-top:14px">
+          <button class="btn btn-primary" onclick="zervSpildevandFejl('${kundeId}')">Indberet fejl på spildevand</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Spildevand-fakturaer</div>
+        ${(minKonto.fakturaer||[]).slice(0,8).map(f => `
+          <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:600">Faktura ${f.fakturanr || f.id}</div>
+              <div style="font-size:11px;color:var(--muted)">${fmtDate(f.fakturadato)} · Forfald: ${fmtDate(f.forfaldsdato)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:600">${fmtDKK(f.belob_incl)} kr.</div>
+              <span class="status-badge status-${f.status}">${f.status}</span>
+            </div>
+          </div>`).join('') || '<div class="empty">Ingen fakturaer</div>'}
+      </div>
+    </div>` : ''}
+
+    ${!visRenovation && !visSpildevand ? '<div class="empty" style="margin-top:40px">Ingen aktive kontrakter for denne kunde</div>' : ''}
   `;
   document.getElementById('zv-pick').onchange = (e) => go('zerv', { kunde: e.target.value });
 };
@@ -2647,6 +2750,31 @@ window.zervStorskrald = function(kundeId) {
     }).then(r => r.json());
     closeModal();
     toast('Bestilt via Zerv: ' + r.sag_id, 'success');
+  });
+};
+
+window.zervSpildevandFejl = function(kundeId) {
+  openModal('Indberet fejl på spildevand (Zerv-flow)', `
+    <div class="form-row"><label>Fejltype</label><select id="zf-kat">
+      <option value="laekage">Lækage</option>
+      <option value="tilstopning">Tilstopning / oversvømmelse</option>
+      <option value="maaler_defekt">Målerfejl</option>
+      <option value="lugt">Lugtgener</option>
+      <option value="andet">Andet</option>
+    </select></div>
+    <div class="form-row"><label>Beskrivelse *</label><textarea id="zf-beskr" placeholder="Beskriv fejlen..."></textarea></div>
+  `, async () => {
+    const kat = document.getElementById('zf-kat');
+    const r = await fetch('/api/zerv/reklamation', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + kundeId },
+      body: JSON.stringify({
+        kategori: kat.value,
+        titel: 'Spildevand: ' + kat.options[kat.selectedIndex].text,
+        beskrivelse: document.getElementById('zf-beskr').value || '(indberettet via Zerv)',
+      }),
+    }).then(r => r.json());
+    closeModal();
+    toast('Fejlmelding oprettet: ' + r.sag_id, 'success');
   });
 };
 
@@ -3344,12 +3472,20 @@ views.kommuner = async () => {
   function renderDropdown(r, q) {
     const sections = [];
     if (r.kunder.length) sections.push({
-      title: 'Kunder', items: r.kunder.map(k => ({
-        icon: k.type === 'erhverv' ? '🏢' : '👤',
-        title: highlight(k.navn, q),
-        meta: `${k.id}${k.cvr ? ' · CVR ' + k.cvr : ''}${k.email ? ' · ' + k.email : ''}`,
-        href: `#kunder?id=${k.id}`,
-      })),
+      title: 'Kunder', items: r.kunder.map(k => {
+        const types = k.service_types || [];
+        const badges = [
+          types.includes('renovation') ? '<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e;margin-right:4px">🚛 Renovation</span>' : '',
+          types.includes('spildevand') ? '<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600;background:#dbeafe;color:#1e40af;margin-right:4px">💧 Spildevand</span>' : '',
+        ].join('');
+        return {
+          icon: k.type === 'erhverv' ? '🏢' : '👤',
+          title: highlight(k.navn, q),
+          meta: `${k.id}${k.cvr ? ' · CVR ' + k.cvr : ''}${k.email ? ' · ' + k.email : ''}`,
+          badges,
+          href: `#kunder?id=${k.id}`,
+        };
+      }),
     });
     if (r.kontrakter.length) sections.push({
       title: 'Kontrakter', items: r.kontrakter.map(k => ({
@@ -3391,7 +3527,7 @@ views.kommuner = async () => {
               <div class="si-icon">${it.icon}</div>
               <div class="si-info">
                 <div class="si-title">${it.title}</div>
-                <div class="si-meta">${it.meta}</div>
+                <div class="si-meta">${it.meta}${it.badges ? '<span style="margin-left:6px">' + it.badges + '</span>' : ''}</div>
               </div>
             </div>`).join('')}
         </div>

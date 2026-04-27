@@ -16,10 +16,13 @@ router.get('/', async (req, res, next) => {
 
     const [kunder, ejendomme, kontrakter, fakturaer, sager] = await Promise.all([
       query(`
-        SELECT id, navn, type, cvr, email
-        FROM kunder
-        WHERE navn ILIKE $1 OR LOWER(id) LIKE $2 OR cvr LIKE $2 OR cpr LIKE $2 OR email ILIKE $1
-        ORDER BY similarity(navn, $3) DESC NULLS LAST
+        SELECT ku.id, ku.navn, ku.type, ku.cvr, ku.email,
+               ARRAY_REMOVE(ARRAY_AGG(DISTINCT ko.service_type) FILTER (WHERE ko.service_type IS NOT NULL AND ko.status = 'aktiv'), NULL) AS service_types
+        FROM kunder ku
+        LEFT JOIN kontrakter ko ON ko.kunde_id = ku.id
+        WHERE ku.navn ILIKE $1 OR LOWER(ku.id) LIKE $2 OR ku.cvr LIKE $2 OR ku.cpr LIKE $2 OR ku.email ILIKE $1
+        GROUP BY ku.id, ku.navn, ku.type, ku.cvr, ku.email
+        ORDER BY similarity(ku.navn, $3) DESC NULLS LAST
         LIMIT ${limit}
       `, [like, prefix, q]),
       query(`
